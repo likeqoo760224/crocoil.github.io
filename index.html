@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>進階報價與訂單建立系統 (雲端同步版)</title>
+    <title>進階報價與訂單建立系統 (獨立雲端帳號版)</title>
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,33 +18,66 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         input:focus, select:focus { outline: 2px solid #3b82f6; outline-offset: -1px; }
-        /* 分頁切換樣式 */
         .tab-active { border-bottom: 3px solid #3b82f6; color: #3b82f6; font-weight: bold; background-color: #eff6ff; }
         .tab-inactive { color: #64748b; font-weight: normal; }
         .tab-inactive:hover { background-color: #f8fafc; color: #475569; }
-        
-        /* 手機版掃描器 UI 優化 */
         #reader { width: 100%; min-height: 300px; border-radius: 8px; overflow: hidden; border: none !important; background-color: #1a1a1a; display: flex; align-items: center; justify-content: center; }
         #reader__dashboard_section_csr span { font-size: 14px; }
         #reader__dashboard_section_swaplink { margin-top: 10px; display: block; text-decoration: underline; color: #3b82f6; }
         #reader video { object-fit: cover; border-radius: 8px; width: 100% !important; height: auto !important; }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-2 md:p-6 relative">
+<body class="bg-gray-100 min-h-screen relative">
 
-    <div class="max-w-[1400px] mx-auto bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-200">
+    <!-- ==========================================
+         登入與註冊畫面 (Auth Overlay)
+         ========================================== -->
+    <div id="auth-overlay" class="fixed inset-0 bg-slate-900 z-[200] flex flex-col justify-center items-center p-4">
+        <div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-md">
+            <div class="text-center mb-6">
+                <div class="inline-block bg-blue-100 p-3 rounded-full mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-600"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+                </div>
+                <h2 class="text-2xl font-bold text-slate-800">ERP 系統登入</h2>
+                <p class="text-sm text-slate-500 mt-1">個人獨立資料儲存空間</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">電子郵件 (帳號)</label>
+                    <input type="email" id="auth-email" class="w-full p-3 border border-gray-300 rounded outline-none focus:border-blue-500" placeholder="例如: user@company.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">密碼</label>
+                    <input type="password" id="auth-password" class="w-full p-3 border border-gray-300 rounded outline-none focus:border-blue-500" placeholder="請輸入密碼 (至少6碼)">
+                </div>
+                <div class="flex flex-col gap-3 mt-6 pt-2">
+                    <button id="btn-login" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded transition-colors text-lg shadow-md">登入系統</button>
+                    <button id="btn-register" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded transition-colors text-lg shadow-md">註冊新帳號</button>
+                </div>
+                <div id="auth-error" class="text-red-500 text-sm text-center font-bold hidden mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         系統主要介面 (隱藏直到登入)
+         ========================================== -->
+    <div id="main-app" class="hidden p-2 md:p-6 max-w-[1400px] mx-auto bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-200">
         
         <!-- --- 系統頂部與操作區 --- -->
         <div class="bg-slate-800 text-white p-4 md:p-5 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3 w-full md:w-auto">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 shrink-0"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16.01" y1="10" y2="10"/><line x1="8" x2="8.01" y1="10" y2="10"/><line x1="12" x2="12.01" y1="10" y2="10"/><line x1="16" x2="16.01" y1="14" y2="14"/><line x1="8" x2="8.01" y1="14" y2="14"/><line x1="12" x2="12.01" y1="14" y2="14"/><line x1="16" x2="16.01" y1="18" y2="18"/><line x1="8" x2="8.01" y1="18" y2="18"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
                 <div class="flex-1">
-                    <h1 class="text-xl md:text-2xl font-bold tracking-wide">報價與訂單系統 <span class="text-xs md:text-sm font-normal text-teal-300 ml-1 md:ml-2">(☁️ 雲端同步版)</span></h1>
-                    <p class="text-slate-400 text-xs mt-1" id="db-status">正在載入系統模組...</p>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-wide">報價與訂單系統 <span class="text-xs md:text-sm font-normal text-teal-300 ml-1 md:ml-2">(🔒 安全獨立空間)</span></h1>
+                    <p class="text-slate-400 text-xs mt-1" id="db-status">系統載入中...</p>
                 </div>
             </div>
             
             <div class="flex flex-wrap gap-2 md:gap-3 w-full md:w-auto">
+                <button id="btn-logout" class="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-800 border border-slate-600 hover:bg-slate-700 px-4 py-2.5 rounded shadow cursor-pointer transition-all text-sm font-bold text-teal-300">
+                    👤 <span id="current-user-email" class="max-w-[100px] truncate">未登入</span> ｜ 登出
+                </button>
                 <label class="flex-1 md:flex-none justify-center flex items-center gap-2 bg-slate-700 hover:bg-slate-600 px-4 py-2.5 rounded shadow cursor-pointer transition-all text-sm font-medium">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
                     更新價格表
@@ -59,13 +92,13 @@
                 ✍️ 訂單作業
             </button>
             <button id="nav-summary" class="w-1/2 md:flex-1 py-3 md:py-4 text-center transition-colors tab-inactive border-l border-gray-200">
-                📊 歷史報表
+                📊 我的歷史報表
             </button>
             <button id="nav-customer" class="w-1/2 md:flex-1 py-3 md:py-4 text-center transition-colors tab-inactive border-l md:border-t-0 border-t border-gray-200">
-                👥 客戶管理
+                👥 客戶庫(共用)
             </button>
             <button id="nav-product" class="w-1/2 md:flex-1 py-3 md:py-4 text-center transition-colors tab-inactive border-l md:border-t-0 border-t border-gray-200">
-                📦 產品查詢
+                📦 產品庫(共用)
             </button>
         </div>
 
@@ -150,7 +183,7 @@
                     
                     <div class="flex gap-2 mt-2 md:mt-4">
                         <button id="btn-save-order" class="flex-1 md:flex-none flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded shadow-lg font-medium transition-all text-sm justify-center">
-                            💾 儲存本單
+                            💾 儲存至我的雲端
                         </button>
                         <button id="btn-export" class="flex-1 md:flex-none flex items-center gap-1 bg-blue-600 hover:bg-blue-500 text-white px-4 py-2.5 rounded shadow-lg font-medium transition-all text-sm justify-center">
                             📥 匯出 Excel
@@ -186,7 +219,7 @@
                     <input type="date" id="filter-date" class="p-1.5 border border-gray-300 rounded focus:border-blue-500 outline-none w-full md:w-auto" />
                 </div>
                 <div class="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
-                    <button id="btn-backup-db" class="bg-slate-600 text-white px-3 py-2 rounded shadow text-sm text-center">下載備份檔</button>
+                    <button id="btn-backup-db" class="bg-slate-600 text-white px-3 py-2 rounded shadow text-sm text-center">下載我的備份</button>
                     <label class="bg-teal-600 text-white px-3 py-2 rounded shadow text-sm text-center cursor-pointer">
                         匯入備份<input type="file" id="file-restore" accept=".json" class="hidden" />
                     </label>
@@ -195,8 +228,8 @@
             </div>
             <!-- 數據儀表板 -->
             <div class="grid grid-cols-3 gap-3 md:gap-6 mb-6">
-                <div class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-blue-100 border-l-4 border-l-blue-500"><p class="text-xs md:text-sm text-gray-500 font-bold mb-1">筆數</p><p class="text-xl md:text-3xl font-black text-gray-800" id="dash-count">0</p></div>
-                <div class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500"><p class="text-xs md:text-sm text-gray-500 font-bold mb-1">營業額</p><p class="text-xl md:text-3xl font-black text-emerald-600 truncate" id="dash-total">$0</p></div>
+                <div class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-blue-100 border-l-4 border-l-blue-500"><p class="text-xs md:text-sm text-gray-500 font-bold mb-1">我的訂單數</p><p class="text-xl md:text-3xl font-black text-gray-800" id="dash-count">0</p></div>
+                <div class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-emerald-100 border-l-4 border-l-emerald-500"><p class="text-xs md:text-sm text-gray-500 font-bold mb-1">我的營業額</p><p class="text-xl md:text-3xl font-black text-emerald-600 truncate" id="dash-total">$0</p></div>
                 <div class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-orange-100 border-l-4 border-l-orange-400"><p class="text-xs md:text-sm text-gray-500 font-bold mb-1">稅金</p><p class="text-xl md:text-3xl font-black text-orange-500 truncate" id="dash-tax">$0</p></div>
             </div>
             <!-- 列表 -->
@@ -217,7 +250,7 @@
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-200 mb-6">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-2 gap-3">
-                        <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">新增/更新客戶</h3>
+                        <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">新增/更新客戶 (全員共用)</h3>
                         <label class="flex items-center gap-2 bg-slate-600 text-white px-3 py-1.5 rounded shadow cursor-pointer text-sm">
                             批次匯入(CSV)<input type="file" id="cust-file-upload" accept=".csv" class="hidden" />
                         </label>
@@ -332,7 +365,7 @@
     <script type="module">
         // 匯入 Firebase v10 核心模組
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // 客戶專屬 Firebase 金鑰配置
@@ -350,11 +383,19 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Firebase 資料庫路徑規範 (直接讀取根目錄)
-        const getColRef = (colName) => collection(db, colName);
-        const getDocRef = (colName, docId) => doc(db, colName, docId);
+        // Firebase 資料庫路徑規範
+        // 1. 公用空間 (產品、客戶)：讀取根目錄 collection
+        const getPublicColRef = (colName) => collection(db, colName);
+        const getPublicDocRef = (colName, docId) => doc(db, colName, docId);
+        
+        // 2. 個人獨立空間 (訂單)：隔離在 user/{uid}/orders 底下
+        const getPrivateColRef = (colName, uid) => collection(db, 'users', uid, colName);
+        const getPrivateDocRef = (colName, docId, uid) => doc(db, 'users', uid, colName, docId);
 
         let currentUser = null;
+        let unsubProducts = null;
+        let unsubCustomers = null;
+        let unsubOrders = null;
 
         // --- 全域變數 ---
         window.products = [];
@@ -387,80 +428,158 @@
         const iconEdit = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
         // ==========================================
-        //  初始化系統與雙軌連線(單機/雲端)
+        //  認證系統與初始化
         // ==========================================
-        async function init() {
-            // 1. 優先載入本機端資料
-            try {
-                const savedProd = localStorage.getItem('erp_products_system_v4'); if (savedProd) window.products = JSON.parse(savedProd);
-                const savedHistory = localStorage.getItem('erp_saved_orders_v1'); if (savedHistory) window.savedOrders = JSON.parse(savedHistory);
-                const savedCust = localStorage.getItem('erp_customers_v1'); if (savedCust) window.customers = JSON.parse(savedCust);
-            } catch (e) { console.error("本機資料讀取失敗", e); }
-
+        function init() {
             // 準備 DOM 狀態
             document.getElementById('invoice-no').value = settings.invoiceNo;
             document.getElementById('doc-date').value = settings.date;
             document.getElementById('filter-date').value = settings.date;
-
-            addNewRowData();
-            renderFullTable();
-            renderCustomerTable();
-            renderProductTable();
+            
             bindStaticEvents();
-            renderSummaryView(settings.date);
-            updateDbStatus();
 
-            // 2. 嘗試連線至 Firebase
-            try {
-                await signInAnonymously(auth);
-            } catch (error) {
-                console.warn("Firebase Auth Error:", error);
-                if (error.code === 'auth/configuration-not-found') {
-                    document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (尚未啟用 Firebase 匿名登入)';
-                } else {
-                    document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (網路或資料庫連線失敗)';
-                }
-            }
-
-            // 3. 成功連線後，設定即時監聽與雲端覆寫
+            // 監聽登入狀態改變
             onAuthStateChanged(auth, (user) => {
-                if (user && !currentUser) {
+                const overlay = document.getElementById('auth-overlay');
+                const mainApp = document.getElementById('main-app');
+                
+                if (user) {
+                    // 已登入
                     currentUser = user;
+                    overlay.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                    
+                    // 顯示帳號名稱
+                    const emailName = user.email.split('@')[0];
+                    document.getElementById('current-user-email').innerText = emailName;
+                    
+                    // 載入該使用者的本機快取資料
+                    loadLocalData(user.uid);
+                    
+                    addNewRowData();
+                    renderFullTable();
+                    renderCustomerTable();
+                    renderProductTable();
+                    renderSummaryView(settings.date);
+
+                    // 啟動即時同步
                     setupRealtimeListeners();
+                } else {
+                    // 未登入
+                    currentUser = null;
+                    cleanupListeners();
+                    overlay.classList.remove('hidden');
+                    mainApp.classList.add('hidden');
+                    window.savedOrders = [];
+                    window.rows = [];
                 }
             });
+        }
+
+        // 登入事件
+        document.getElementById('btn-login').addEventListener('click', async () => {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const errDiv = document.getElementById('auth-error');
+            
+            if(!email || !password) {
+                errDiv.innerText = '請輸入帳號與密碼！';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+            try {
+                errDiv.classList.add('hidden');
+                document.getElementById('btn-login').innerText = '登入中...';
+                await signInWithEmailAndPassword(auth, email, password);
+            } catch(e) {
+                document.getElementById('btn-login').innerText = '登入系統';
+                errDiv.innerText = '登入失敗：' + e.message;
+                errDiv.classList.remove('hidden');
+            }
+        });
+
+        // 註冊事件
+        document.getElementById('btn-register').addEventListener('click', async () => {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const errDiv = document.getElementById('auth-error');
+            
+            if(!email || !password) {
+                errDiv.innerText = '請輸入帳號與密碼！';
+                errDiv.classList.remove('hidden');
+                return;
+            }
+            try {
+                errDiv.classList.add('hidden');
+                document.getElementById('btn-register').innerText = '註冊中...';
+                await createUserWithEmailAndPassword(auth, email, password);
+                alert('註冊成功！系統將為您建立專屬的隔離雲端空間。');
+            } catch(e) {
+                document.getElementById('btn-register').innerText = '註冊新帳號';
+                errDiv.innerText = '註冊失敗：' + e.message;
+                errDiv.classList.remove('hidden');
+            }
+        });
+
+        // 登出事件
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            if(confirm('確定要登出目前的帳號嗎？')) {
+                await signOut(auth);
+            }
+        });
+
+        function loadLocalData(uid) {
+            try {
+                const savedProd = localStorage.getItem('erp_products_system_v4'); 
+                if (savedProd) window.products = JSON.parse(savedProd);
+                
+                const savedCust = localStorage.getItem('erp_customers_v1'); 
+                if (savedCust) window.customers = JSON.parse(savedCust);
+                
+                // 訂單使用含有 uid 的專屬金鑰，避免同一台電腦帳號切換時看到別人的快取
+                const savedHistory = localStorage.getItem('erp_saved_orders_' + uid); 
+                if (savedHistory) window.savedOrders = JSON.parse(savedHistory);
+            } catch (e) { console.error("本機資料讀取失敗", e); }
         }
 
         function setupRealtimeListeners() {
             if (!currentUser) return;
             document.getElementById('db-status').innerText = '☁️ 正在同步雲端資料...';
             
-            onSnapshot(getColRef('products'), (snapshot) => {
+            // 監聽公用產品庫
+            unsubProducts = onSnapshot(getPublicColRef('products'), (snapshot) => {
                 window.products = snapshot.docs.map(doc => doc.data());
                 localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
                 updateDbStatus();
                 renderProductTable(document.getElementById('prod-search').value);
             }, (error) => console.error(error));
 
-            onSnapshot(getColRef('customers'), (snapshot) => {
+            // 監聽公用客戶庫
+            unsubCustomers = onSnapshot(getPublicColRef('customers'), (snapshot) => {
                 window.customers = snapshot.docs.map(doc => doc.data());
                 localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
                 updateDbStatus();
                 renderCustomerTable();
             }, (error) => console.error(error));
 
-            onSnapshot(getColRef('orders'), (snapshot) => {
+            // 監聽個人專屬訂單庫 (安全隔離)
+            unsubOrders = onSnapshot(getPrivateColRef('orders', currentUser.uid), (snapshot) => {
                 const data = snapshot.docs.map(doc => doc.data());
                 window.savedOrders = data.sort((a,b) => b.id.localeCompare(a.id));
-                localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
+                localStorage.setItem('erp_saved_orders_' + currentUser.uid, JSON.stringify(window.savedOrders));
                 updateDbStatus();
                 renderSummaryView(document.getElementById('filter-date').value);
             }, (error) => console.error(error));
         }
 
+        function cleanupListeners() {
+            if(unsubProducts) unsubProducts();
+            if(unsubCustomers) unsubCustomers();
+            if(unsubOrders) unsubOrders();
+        }
+
         function updateDbStatus() {
-            const mode = currentUser ? '☁️ 雲端同步中' : '⚠️ 單機離線模式';
-            document.getElementById('db-status').innerText = `${mode} ｜ 產品：${window.products.length} 筆 ｜ 訂單：${window.savedOrders.length} 筆 ｜ 客戶：${window.customers.length} 筆`;
+            document.getElementById('db-status').innerText = `☁️ 雲端同步中 ｜ 產品：${window.products.length} 筆 ｜ 您的訂單：${window.savedOrders.length} 筆 ｜ 客戶庫：${window.customers.length} 筆`;
         }
 
         function incrementString(str) {
@@ -575,7 +694,6 @@
             scannerModal.classList.remove('hidden');
             window.isScanningPaused = false;
             
-            // 清空畫面確保 Html5Qrcode 不會因為既存 DOM 元素而出錯
             readerDiv.innerHTML = '';
 
             setTimeout(() => {
@@ -649,7 +767,7 @@
         }
 
         // ==========================================
-        //  分頁 2/3/4：綜合後台邏輯 (雙軌支援：雲端+單機)
+        //  分頁 2/3/4：綜合後台邏輯 
         // ==========================================
         function renderSummaryView(targetDate) {
             const dailyOrders = window.savedOrders.filter(o => o.date === targetDate);
@@ -681,8 +799,11 @@
         window.deleteSavedOrder = async (id, d) => { 
             if(confirm("確定刪除這筆歷史訂單？")) { 
                 window.savedOrders = window.savedOrders.filter(o => o.id !== id);
-                localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
-                if (currentUser) { await deleteDoc(getDocRef('orders', id)); }
+                localStorage.setItem('erp_saved_orders_' + currentUser.uid, JSON.stringify(window.savedOrders));
+                
+                // 雲端刪除，使用個人的路徑
+                if (currentUser) { await deleteDoc(getPrivateDocRef('orders', id, currentUser.uid)); }
+                
                 updateDbStatus();
                 renderSummaryView(d);
             } 
@@ -696,11 +817,11 @@
         }
         
         window.deleteCustomer = async (i) => { 
-            if(confirm('刪除客戶資料？')){ 
+            if(confirm('刪除客戶資料？(這會影響全公司)')){ 
                 const code = window.customers[i].code;
                 window.customers.splice(i, 1);
                 localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
-                if (currentUser) { await deleteDoc(getDocRef('customers', code)); }
+                if (currentUser) { await deleteDoc(getPublicDocRef('customers', code)); }
                 updateDbStatus();
                 renderCustomerTable();
             }
@@ -732,11 +853,11 @@
         }
 
         window.deleteProduct = async function(idx) { 
-            if(confirm('刪除這項商品嗎？')) { 
+            if(confirm('刪除這項商品嗎？(這會影響全公司)')) { 
                 const itemNo = window.products[idx].itemNo;
                 window.products.splice(idx, 1);
                 localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
-                if (currentUser) { await deleteDoc(getDocRef('products', itemNo)); }
+                if (currentUser) { await deleteDoc(getPublicDocRef('products', itemNo)); }
                 updateDbStatus();
                 renderProductTable(document.getElementById('prod-search').value);
             } 
@@ -757,7 +878,7 @@
             if(idx === -1) window.products.push(newProd); else window.products[idx] = newProd;
             localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
 
-            if (currentUser) { await setDoc(getDocRef('products', newProd.itemNo), newProd); }
+            if (currentUser) { await setDoc(getPublicDocRef('products', newProd.itemNo), newProd); }
             
             updateDbStatus();
             renderProductTable(document.getElementById('prod-search').value);
@@ -766,7 +887,7 @@
         }
 
         // ==========================================
-        //  CSV 批次匯入解析引擎 (模糊對應防錯版)
+        //  CSV 解析與儲存行為綁定
         // ==========================================
         function bindStaticEvents() {
             const tabs = [ { nav: navs.order, view: views.order }, { nav: navs.summary, view: views.summary }, { nav: navs.customer, view: views.customer }, { nav: navs.product, view: views.product } ];
@@ -791,7 +912,9 @@
 
             document.getElementById('btn-add-row').addEventListener('click', () => { if(addNewRowData()) renderFullTable(); });
 
+            // ★ 儲存訂單至個人的獨立雲端空間
             document.getElementById('btn-save-order').addEventListener('click', async () => {
+                if (!currentUser) return alert('請先登入系統！');
                 if (!settings.customerName.trim()) { alert('請填寫客戶名稱！'); document.getElementById('customer-name').focus(); return; }
                 const validRows = window.rows.filter(r => r.itemNo.trim() !== '' || r.barcode.trim() !== '');
                 if (validRows.length === 0) { alert('請至少輸入一筆商品！'); return; }
@@ -803,10 +926,11 @@
 
                 try {
                     window.savedOrders.push(newOrder);
-                    localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
+                    localStorage.setItem('erp_saved_orders_' + currentUser.uid, JSON.stringify(window.savedOrders));
                     updateDbStatus();
 
-                    if (currentUser) { await setDoc(getDocRef('orders', newOrder.id), newOrder); }
+                    // 使用 currentUser.uid 將訂單寫入專屬資料夾
+                    await setDoc(getPrivateDocRef('orders', newOrder.id, currentUser.uid), newOrder);
                     
                     if(settings.invoiceNo) { 
                         settings.invoiceNo = incrementString(settings.invoiceNo); 
@@ -814,28 +938,25 @@
                         localStorage.setItem('erp_latest_invoice', settings.invoiceNo); 
                     }
                     
-                    const msg = currentUser ? '訂單雲端同步成功！' : '訂單儲存成功！(目前為單機離線狀態)';
-                    alert(msg);
+                    alert('訂單已安全存入您的專屬雲端空間！');
 
                     if(confirm("建立下一筆新單？")) { settings.customerName = ''; settings.customerCode = ''; document.getElementById('customer-name').value = ''; document.getElementById('customer-code').value = ''; window.rows = []; addNewRowData(); renderFullTable(); }
                 } catch(e) { alert("儲存發生錯誤。"); console.error(e); }
             });
 
-            // 批次匯入產品 (自動解決 Big5/UTF-8 亂碼與 Excel 隱形引號)
+            // 批次匯入產品 (存至公用區)
             document.getElementById('file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
                     const buffer = event.target.result;
-                    // 自動判斷並修正台灣常見的 Excel Big5 亂碼問題
                     let text = new TextDecoder('utf-8').decode(buffer);
                     if (text.includes('')) text = new TextDecoder('big5').decode(buffer);
                     
                     const lines = text.split(/\r?\n/); let newProducts = []; let headerFound = false; let headerIdx = {};
 
                     for (let i = 0; i < lines.length; i++) {
-                        if(!lines[i].trim()) continue; // 跳過空白行
+                        if(!lines[i].trim()) continue; 
                         
-                        // 清洗資料：去除 BOM、移除 Excel 的 ="..." 格式、移除標準雙引號
                         const cols = lines[i].split(/,|\t/).map(col => {
                             let c = col.trim().replace(/^\uFEFF/, '');
                             if (c.startsWith('="') && c.endsWith('"')) c = c.substring(2, c.length - 1);
@@ -844,7 +965,6 @@
                         });
                         
                         if (!headerFound) {
-                            // 極度寬鬆的模糊標題搜尋
                             const itemNoIdx = cols.findIndex(c => c.includes('品號') || c.includes('貨號') || c.includes('料號') || c.includes('產品編號'));
                             const nameIdx = cols.findIndex(c => c.includes('品名') || c.includes('商品名稱') || c.includes('產品名稱'));
                             
@@ -884,20 +1004,18 @@
                         updateDbStatus();
 
                         if (currentUser) {
-                            document.getElementById('db-status').innerText = '正在批次上傳至雲端...';
+                            document.getElementById('db-status').innerText = '正在批次上傳至公用雲端...';
                             try {
-                                for(const p of newProducts) { await setDoc(getDocRef('products', p.itemNo), p); }
-                                alert(`成功上傳 ${newProducts.length} 筆產品至雲端！`);
-                            } catch(err) { alert('雲端上傳發生錯誤，但本機已儲存。'); console.error(err); }
-                        } else {
-                            alert(`成功載入 ${newProducts.length} 筆產品！(單機模式)`);
+                                for(const p of newProducts) { await setDoc(getPublicDocRef('products', p.itemNo), p); }
+                                alert(`成功更新全公司 ${newProducts.length} 筆產品庫！`);
+                            } catch(err) { alert('雲端上傳發生錯誤。'); console.error(err); }
                         }
                     } else { alert('無法解析檔案格式。請確保檔案含有「品號」與「品名」標題。'); }
                     e.target.value = '';
                 }; reader.readAsArrayBuffer(file); 
             });
 
-            // 批次匯入客戶 (自動解決 Big5/UTF-8 亂碼與 Excel 隱形引號)
+            // 批次匯入客戶 (存至公用區)
             document.getElementById('cust-file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
@@ -941,22 +1059,18 @@
                     }
                     
                     if (newCustomers.length > 0) {
-                        const msg = currentUser ? `偵測到 ${newCustomers.length} 筆客戶。\n即將批次匯入並上傳至雲端資料庫？` : `偵測到 ${newCustomers.length} 筆客戶。\n是否匯入至單機資料庫？`;
-                        if (confirm(msg)) { 
+                        const msg = currentUser ? `偵測到 ${newCustomers.length} 筆客戶。\n即將批次匯入並覆蓋全公司公用客戶庫？` : `未登入，操作無效。`;
+                        if (currentUser && confirm(msg)) { 
                             window.customers = newCustomers;
                             localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
                             renderCustomerTable();
                             updateDbStatus();
 
-                            if (currentUser) {
-                                document.getElementById('db-status').innerText = '正在批次上傳至雲端...';
-                                try {
-                                    for(const nc of newCustomers) { await setDoc(getDocRef('customers', nc.code), nc); }
-                                    alert('客戶資料雲端匯入成功！');
-                                } catch(err) { alert('雲端上傳發生錯誤，但本機已儲存。'); console.error(err); }
-                            } else {
-                                alert('客戶資料匯入成功！(單機模式)');
-                            }
+                            document.getElementById('db-status').innerText = '正在批次上傳至公用雲端...';
+                            try {
+                                for(const nc of newCustomers) { await setDoc(getPublicDocRef('customers', nc.code), nc); }
+                                alert('客戶資料雲端匯入成功！');
+                            } catch(err) { alert('雲端上傳發生錯誤。'); console.error(err); }
                         }
                     } else { alert('無法解析檔案。請確保檔案含有「代號」與「名稱」標題。'); }
                     e.target.value = '';
@@ -970,7 +1084,7 @@
                 
                 const existingIdx = window.customers.findIndex(c => c.code === code);
                 if(existingIdx >= 0) { 
-                    if(confirm('代號已存在，確認覆蓋更新？')) window.customers[existingIdx] = newCust; else return;
+                    if(confirm('代號已存在，確認覆蓋更新？(將影響全公司)')) window.customers[existingIdx] = newCust; else return;
                 } else {
                     window.customers.push(newCust);
                 }
@@ -979,9 +1093,8 @@
                 renderCustomerTable();
                 updateDbStatus();
 
-                if (currentUser) { await setDoc(getDocRef('customers', code), newCust); }
-
-                alert(currentUser ? '客戶雲端儲存成功！' : '客戶儲存成功！(單機模式)'); 
+                if (currentUser) { await setDoc(getPublicDocRef('customers', code), newCust); }
+                alert('客戶資料已更新至公用雲端！'); 
                 document.getElementById('new-cust-code').value = ''; document.getElementById('new-cust-name').value = '';
             });
 
@@ -1024,17 +1137,15 @@
                     try {
                         const importedData = JSON.parse(event.target.result);
                         if (Array.isArray(importedData)) {
-                            if(confirm(`偵測到 ${importedData.length} 筆歷史訂單。\n即將還原並寫入系統庫，是否繼續？`)) {
+                            if(confirm(`偵測到 ${importedData.length} 筆歷史訂單。\n即將還原並寫入您個人的雲端庫，是否繼續？`)) {
                                 const existingIds = new Set(window.savedOrders.map(o => o.id)); 
                                 importedData.forEach(o => { if(!existingIds.has(o.id)) window.savedOrders.push(o); });
-                                localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders)); 
+                                localStorage.setItem('erp_saved_orders_' + currentUser.uid, JSON.stringify(window.savedOrders)); 
 
                                 if (currentUser) {
                                     document.getElementById('db-status').innerText = '正在還原至雲端...';
-                                    for(const o of importedData) { await setDoc(getDocRef('orders', o.id), o); }
-                                    alert('歷史資料雲端還原成功！');
-                                } else {
-                                    alert('歷史資料本機還原成功！');
+                                    for(const o of importedData) { await setDoc(getPrivateDocRef('orders', o.id, currentUser.uid), o); }
+                                    alert('歷史資料已安全還原至您的個人雲端！');
                                 }
                                 updateDbStatus(); 
                                 renderSummaryView(document.getElementById('filter-date').value); 
