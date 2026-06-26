@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>進階報價與訂單建立系統</title>
+    <title>進階報價與訂單建立系統 (雲端同步版)</title>
     
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -39,8 +39,8 @@
             <div class="flex items-center gap-3 w-full md:w-auto">
                 <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-blue-400 shrink-0"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16.01" y1="10" y2="10"/><line x1="8" x2="8.01" y1="10" y2="10"/><line x1="12" x2="12.01" y1="10" y2="10"/><line x1="16" x2="16.01" y1="14" y2="14"/><line x1="8" x2="8.01" y1="14" y2="14"/><line x1="12" x2="12.01" y1="14" y2="14"/><line x1="16" x2="16.01" y1="18" y2="18"/><line x1="8" x2="8.01" y1="18" y2="18"/><line x1="12" x2="12.01" y1="18" y2="18"/></svg>
                 <div class="flex-1">
-                    <h1 class="text-xl md:text-2xl font-bold tracking-wide">報價與訂單系統 <span class="text-xs md:text-sm font-normal text-slate-300 ml-1 md:ml-2">(跨平台版)</span></h1>
-                    <p class="text-slate-400 text-xs mt-1" id="db-status">產品庫：0 筆 ｜ 歷史訂單：0 筆 ｜ 客戶：0 筆</p>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-wide">報價與訂單系統 <span class="text-xs md:text-sm font-normal text-teal-300 ml-1 md:ml-2">(☁️ 雲端同步版)</span></h1>
+                    <p class="text-slate-400 text-xs mt-1" id="db-status">正在載入系統模組...</p>
                 </div>
             </div>
             
@@ -186,9 +186,9 @@
                     <input type="date" id="filter-date" class="p-1.5 border border-gray-300 rounded focus:border-blue-500 outline-none w-full md:w-auto" />
                 </div>
                 <div class="grid grid-cols-2 md:flex gap-2 w-full md:w-auto">
-                    <button id="btn-backup-db" class="bg-slate-600 text-white px-3 py-2 rounded shadow text-sm text-center">備份歷史</button>
+                    <button id="btn-backup-db" class="bg-slate-600 text-white px-3 py-2 rounded shadow text-sm text-center">下載備份檔</button>
                     <label class="bg-teal-600 text-white px-3 py-2 rounded shadow text-sm text-center cursor-pointer">
-                        還原歷史<input type="file" id="file-restore" accept=".json" class="hidden" />
+                        匯入備份<input type="file" id="file-restore" accept=".json" class="hidden" />
                     </label>
                     <button id="btn-export-daily" class="col-span-2 bg-indigo-600 text-white px-3 py-2 rounded shadow text-sm text-center font-bold">匯出當日報表</button>
                 </div>
@@ -226,7 +226,7 @@
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">代號*</label><input type="text" id="new-cust-code" class="w-full p-2 border rounded uppercase text-sm" /></div>
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">名稱*</label><input type="text" id="new-cust-name" class="w-full p-2 border rounded text-sm" /></div>
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">預設價格</label><select id="new-cust-price" class="w-full p-2 border rounded bg-white text-sm"><option value="p1">經銷(p1)</option><option value="p2">中盤(p2)</option><option value="p3">店頭(p3)</option><option value="p4">末端(p4)</option></select></div>
-                        <button id="btn-save-customer" class="col-span-1 bg-blue-600 text-white font-bold py-2 rounded text-sm h-[38px]">儲存</button>
+                        <button id="btn-save-customer" class="col-span-1 bg-blue-600 text-white font-bold py-2 rounded text-sm h-[38px]">儲存資料</button>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -328,15 +328,42 @@
         </div>
     </div>
 
-    <!-- 原生 Javascript 邏輯 -->
-    <script>
+    <!-- 模組化 Javascript 邏輯 (包含 Firebase 整合與防錯機制) -->
+    <script type="module">
+        // 匯入 Firebase v10 核心模組
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // 客戶專屬 Firebase 金鑰配置
+        const firebaseConfig = {
+          apiKey: "AIzaSyAov0y6-XpVgjscX1vglnwVmTgqhOkT1CQ",
+          authDomain: "crocoil-system.firebaseapp.com",
+          projectId: "crocoil-system",
+          storageBucket: "crocoil-system.firebasestorage.app",
+          messagingSenderId: "159655080194",
+          appId: "1:159655080194:web:9896d38961e9e4774dd21b",
+          measurementId: "G-9V6RMT5XPT"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Firebase 資料庫路徑規範
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'crocoil-system-app';
+        const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
+        const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+
+        let currentUser = null;
+
         // --- 全域變數 ---
-        let products = [];
-        let rows = [];
-        let savedOrders = []; 
-        let customers = []; 
-        let html5QrCode = null; 
-        let isScanningPaused = false;
+        window.products = [];
+        window.rows = [];
+        window.savedOrders = []; 
+        window.customers = []; 
+        window.html5QrCode = null; 
+        window.isScanningPaused = false;
         
         let settings = {
             invoiceNo: localStorage.getItem('erp_latest_invoice') || '', 
@@ -361,30 +388,83 @@
         const iconEdit = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
         // ==========================================
-        //  初始化系統
+        //  初始化系統與雙軌連線(單機/雲端)
         // ==========================================
-        function init() {
+        async function init() {
+            // 1. 優先載入本機端資料 (作為離線或驗證失敗時的備用資料)
             try {
-                const savedProd = localStorage.getItem('erp_products_system_v4'); if (savedProd) products = JSON.parse(savedProd);
-                const savedHistory = localStorage.getItem('erp_saved_orders_v1'); if (savedHistory) savedOrders = JSON.parse(savedHistory);
-                const savedCust = localStorage.getItem('erp_customers_v1'); if (savedCust) customers = JSON.parse(savedCust);
-            } catch (e) { console.error(e); }
-            
-            updateDbStatus();
+                const savedProd = localStorage.getItem('erp_products_system_v4'); if (savedProd) window.products = JSON.parse(savedProd);
+                const savedHistory = localStorage.getItem('erp_saved_orders_v1'); if (savedHistory) window.savedOrders = JSON.parse(savedHistory);
+                const savedCust = localStorage.getItem('erp_customers_v1'); if (savedCust) window.customers = JSON.parse(savedCust);
+            } catch (e) { console.error("本機資料讀取失敗", e); }
+
+            // 準備 DOM 狀態
             document.getElementById('invoice-no').value = settings.invoiceNo;
             document.getElementById('doc-date').value = settings.date;
             document.getElementById('filter-date').value = settings.date;
 
+            // 即便雲端還沒連上，也先用本機資料把畫面畫出來
             addNewRowData();
             renderFullTable();
             renderCustomerTable();
             renderProductTable();
             bindStaticEvents();
             renderSummaryView(settings.date);
+            updateDbStatus();
+
+            // 2. 嘗試連線至 Firebase
+            try {
+                await signInAnonymously(auth);
+            } catch (error) {
+                console.warn("Firebase Auth Error:", error);
+                if (error.code === 'auth/configuration-not-found') {
+                    // 若抓到沒開權限的錯誤，給予明確提示，且不會中斷系統 (單機模式繼續運作)
+                    document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (尚未啟用 Firebase 匿名登入)';
+                    alert("【系統提示】\n您的 Firebase 尚未開啟匿名登入權限，目前系統將以「單機離線模式」運作。\n\n修復方式：\n請至 Firebase 控制台 -> Authentication (驗證) -> Sign-in method (登入方式) -> 啟用「匿名 (Anonymous)」，即可恢復跨平台雲端連線！");
+                } else {
+                    document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (網路或資料庫連線失敗)';
+                }
+            }
+
+            // 3. 成功連線後，設定即時監聽與雲端覆寫
+            onAuthStateChanged(auth, (user) => {
+                if (user && !currentUser) {
+                    currentUser = user;
+                    setupRealtimeListeners();
+                }
+            });
+        }
+
+        function setupRealtimeListeners() {
+            if (!currentUser) return;
+            document.getElementById('db-status').innerText = '☁️ 正在同步雲端資料...';
+            
+            onSnapshot(getColRef('products'), (snapshot) => {
+                window.products = snapshot.docs.map(doc => doc.data());
+                localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
+                updateDbStatus();
+                renderProductTable(document.getElementById('prod-search').value);
+            }, (error) => console.error(error));
+
+            onSnapshot(getColRef('customers'), (snapshot) => {
+                window.customers = snapshot.docs.map(doc => doc.data());
+                localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
+                updateDbStatus();
+                renderCustomerTable();
+            }, (error) => console.error(error));
+
+            onSnapshot(getColRef('orders'), (snapshot) => {
+                const data = snapshot.docs.map(doc => doc.data());
+                window.savedOrders = data.sort((a,b) => b.id.localeCompare(a.id));
+                localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
+                updateDbStatus();
+                renderSummaryView(document.getElementById('filter-date').value);
+            }, (error) => console.error(error));
         }
 
         function updateDbStatus() {
-            document.getElementById('db-status').innerText = `產品庫：${products.length} 筆 ｜ 訂單：${savedOrders.length} 筆 ｜ 客戶：${customers.length} 筆`;
+            const mode = currentUser ? '☁️ 雲端同步中' : '⚠️ 單機離線模式';
+            document.getElementById('db-status').innerText = `${mode} ｜ 產品：${window.products.length} 筆 ｜ 訂單：${window.savedOrders.length} 筆 ｜ 客戶：${window.customers.length} 筆`;
         }
 
         function incrementString(str) {
@@ -404,14 +484,14 @@
         //  分頁 1：訂單編輯區邏輯
         // ==========================================
         function addNewRowData() {
-            if (rows.length >= 50) { alert('已達 50 筆上限！'); return false; }
-            rows.push({ id: Date.now() + Math.random(), itemNo: '', barcode: '', name: '', boxQty: 1, boxInput: 1, retailInput: 0, price: 0, discount: 100 });
+            if (window.rows.length >= 50) { alert('已達 50 筆上限！'); return false; }
+            window.rows.push({ id: Date.now() + Math.random(), itemNo: '', barcode: '', name: '', boxQty: 1, boxInput: 1, retailInput: 0, price: 0, discount: 100 });
             return true;
         }
 
         function renderFullTable() {
             let html = '';
-            rows.forEach((row, index) => {
+            window.rows.forEach((row, index) => {
                 const bQty = Number(row.boxQty) || 1;
                 const retailPrice = +(row.price / bQty).toFixed(2);
                 const subtotal = Math.round(((row.boxInput * row.price) + (row.retailInput * retailPrice)) * (row.discount / 100));
@@ -429,15 +509,15 @@
                     <td class="p-1.5 bg-emerald-50/40"><input type="number" min="0" max="100" data-field="discount" value="${row.discount}" class="w-full p-2 border border-emerald-200 rounded text-center outline-none font-bold text-emerald-900 text-sm" /></td>
                     <td class="p-2 text-right font-bold text-slate-800 text-base subtotal-disp">$${subtotal.toLocaleString()}</td>
                     <td class="p-2 text-center">
-                        <button class="btn-delete p-1.5 text-red-500 hover:bg-red-100 rounded" ${rows.length === 1 ? 'disabled' : ''}>${iconTrash}</button>
+                        <button class="btn-delete p-1.5 text-red-500 hover:bg-red-100 rounded" ${window.rows.length === 1 ? 'disabled' : ''}>${iconTrash}</button>
                     </td>
                 </tr>`;
             });
-            tbody.innerHTML = html; document.getElementById('row-count').innerText = rows.length; updateSummary();
+            tbody.innerHTML = html; document.getElementById('row-count').innerText = window.rows.length; updateSummary();
         }
 
         function updateRowDOM(index, tr) {
-            const r = rows[index]; const bQty = Number(r.boxQty) || 1; const rP = +(r.price / bQty).toFixed(2);
+            const r = window.rows[index]; const bQty = Number(r.boxQty) || 1; const rP = +(r.price / bQty).toFixed(2);
             tr.querySelector('.retail-price-disp').innerText = '$' + rP.toFixed(2);
             tr.querySelector('.subtotal-disp').innerText = '$' + Math.round(((r.boxInput * r.price) + (r.retailInput * rP)) * (r.discount / 100)).toLocaleString();
             updateSummary();
@@ -445,7 +525,7 @@
 
         function updateSummary() {
             let sub = 0;
-            rows.forEach(r => { const bQ = Number(r.boxQty) || 1; sub += Math.round(((r.boxInput * r.price) + (r.retailInput * +(r.price / bQ).toFixed(2))) * (r.discount / 100)); });
+            window.rows.forEach(r => { const bQ = Number(r.boxQty) || 1; sub += Math.round(((r.boxInput * r.price) + (r.retailInput * +(r.price / bQ).toFixed(2))) * (r.discount / 100)); });
             const tax = Math.round(sub * 0.05); currentGlobalTotal = { subtotal: sub, tax: tax, total: sub + tax };
             document.getElementById('summary-subtotal').innerText = '$' + sub.toLocaleString();
             document.getElementById('summary-tax').innerText = '$' + tax.toLocaleString();
@@ -453,8 +533,8 @@
         }
 
         function applyProductToRow(index, product, tr) {
-            rows[index].itemNo = product.itemNo; rows[index].name = product.name; rows[index].barcode = product.barcode; rows[index].boxQty = product.boxQty; rows[index].price = product[settings.priceLevel] || 0;
-            tr.querySelector('[data-field="itemNo"]').value = product.itemNo; tr.querySelector('[data-field="name"]').value = product.name; tr.querySelector('[data-field="barcode"]').value = product.barcode; tr.querySelector('[data-field="boxQty"]').value = product.boxQty; tr.querySelector('[data-field="price"]').value = rows[index].price;
+            window.rows[index].itemNo = product.itemNo; window.rows[index].name = product.name; window.rows[index].barcode = product.barcode; window.rows[index].boxQty = product.boxQty; window.rows[index].price = product[settings.priceLevel] || 0;
+            tr.querySelector('[data-field="itemNo"]').value = product.itemNo; tr.querySelector('[data-field="name"]').value = product.name; tr.querySelector('[data-field="barcode"]').value = product.barcode; tr.querySelector('[data-field="boxQty"]').value = product.boxQty; tr.querySelector('[data-field="price"]').value = window.rows[index].price;
             updateRowDOM(index, tr);
         }
 
@@ -462,16 +542,16 @@
             if (e.target.tagName !== 'INPUT') return;
             const tr = e.target.closest('tr'); const idx = parseInt(tr.dataset.index); const f = e.target.dataset.field; let v = e.target.value;
             if (['boxQty', 'boxInput', 'retailInput', 'price', 'discount'].includes(f)) v = Number(v) || 0;
-            rows[idx][f] = v;
-            if (f === 'itemNo' && v.trim() !== '') { const p = products.find(x => x.itemNo.toUpperCase() === v.toString().trim().toUpperCase()); if (p) applyProductToRow(idx, p, tr); }
-            else if (f === 'barcode' && v.trim() !== '') { const p = products.find(x => x.barcode && x.barcode.toString() === v.toString().trim()); if (p) applyProductToRow(idx, p, tr); }
+            window.rows[idx][f] = v;
+            if (f === 'itemNo' && v.trim() !== '') { const p = window.products.find(x => x.itemNo.toUpperCase() === v.toString().trim().toUpperCase()); if (p) applyProductToRow(idx, p, tr); }
+            else if (f === 'barcode' && v.trim() !== '') { const p = window.products.find(x => x.barcode && x.barcode.toString() === v.toString().trim()); if (p) applyProductToRow(idx, p, tr); }
             else updateRowDOM(idx, tr);
         });
 
         tbody.addEventListener('click', (e) => {
             const btn = e.target.closest('button'); if (!btn) return;
             const idx = parseInt(btn.closest('tr').dataset.index);
-            if (btn.classList.contains('btn-delete')) { if (rows.length > 1) { rows.splice(idx, 1); renderFullTable(); } }
+            if (btn.classList.contains('btn-delete')) { if (window.rows.length > 1) { window.rows.splice(idx, 1); renderFullTable(); } }
         });
 
         document.addEventListener('keydown', (e) => {
@@ -498,11 +578,11 @@
             
             scannerModal.classList.remove('hidden');
             readerDiv.innerHTML = '<div class="text-white text-center p-5 w-full">相機啟動中，請稍候...<br><span class="text-xs text-gray-400 mt-2 block">(若長時間無畫面，請確認瀏覽器相機權限已開啟)</span></div>';
-            isScanningPaused = false;
+            window.isScanningPaused = false;
 
             setTimeout(() => {
-                if (!html5QrCode) {
-                    html5QrCode = new Html5Qrcode("reader");
+                if (!window.html5QrCode) {
+                    window.html5QrCode = new Html5Qrcode("reader");
                 }
                 
                 const config = {
@@ -527,18 +607,18 @@
                     advanced: [{ focusMode: "continuous" }]
                 };
 
-                html5QrCode.start(idealConstraints, config, onScanSuccess, onScanFailure)
+                window.html5QrCode.start(idealConstraints, config, onScanSuccess, onScanFailure)
                 .catch((err) => {
                     console.warn("高畫質對焦模式失敗，降級使用基本模式...", err);
-                    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+                    window.html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
                     .catch(err2 => {
                         console.warn("基本後鏡頭模式失敗，搜尋硬體清單...", err2);
                         Html5Qrcode.getCameras().then(devices => {
                             if (devices && devices.length) {
                                 let cameraId = devices[devices.length - 1].id;
-                                html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure).catch(e => { alert("相機啟動完全失敗！\n" + e); closeScanner(); });
-                            } else { alert("找不到相機鏡頭！"); closeScanner(); }
-                        }).catch(e => { alert("無法取得相機權限！\n" + e); closeScanner(); });
+                                window.html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure).catch(e => { alert("相機啟動完全失敗！\n" + e); window.closeScanner(); });
+                            } else { alert("找不到相機鏡頭！"); window.closeScanner(); }
+                        }).catch(e => { alert("無法取得相機權限！\n" + e); window.closeScanner(); });
                     });
                 });
             }, 300);
@@ -548,15 +628,15 @@
         document.getElementById('btn-open-scanner-mobile').addEventListener('click', initScanner);
 
         function onScanSuccess(decodedText, decodedResult) {
-            if (isScanningPaused) return;
-            isScanningPaused = true; 
+            if (window.isScanningPaused) return;
+            window.isScanningPaused = true; 
             if ("vibrate" in navigator) navigator.vibrate(100);
 
-            const product = products.find(p => p.barcode && p.barcode.toString() === decodedText.toString());
+            const product = window.products.find(p => p.barcode && p.barcode.toString() === decodedText.toString());
             setTimeout(() => {
                 let confirmMsg = product ? `✅ 掃描成功！\n\n📌 條碼：${decodedText}\n📦 品名：${product.name}\n🔖 品號：${product.itemNo}\n💲 單價：$${product[settings.priceLevel] || 0}\n\n是否匯入表單？` : `⚠️ 查無此商品！\n\n📌 條碼：${decodedText}\n\n是否仍要填入空白列手動建檔？`;
-                if (confirm(confirmMsg)) { processScannedBarcode(decodedText, product); closeScanner(); } 
-                else { setTimeout(() => { isScanningPaused = false; }, 1000); }
+                if (confirm(confirmMsg)) { processScannedBarcode(decodedText, product); window.closeScanner(); } 
+                else { setTimeout(() => { window.isScanningPaused = false; }, 1000); }
             }, 50);
         }
 
@@ -564,27 +644,27 @@
 
         window.closeScanner = function() {
             document.getElementById('scanner-modal').classList.add('hidden');
-            if (html5QrCode) {
-                try { html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(err => { html5QrCode.clear(); html5QrCode = null; }); } 
-                catch(e) { html5QrCode = null; }
+            if (window.html5QrCode) {
+                try { window.html5QrCode.stop().then(() => { window.html5QrCode.clear(); window.html5QrCode = null; }).catch(err => { window.html5QrCode.clear(); window.html5QrCode = null; }); } 
+                catch(e) { window.html5QrCode = null; }
             }
         }
 
         function processScannedBarcode(barcode, product) {
-            let targetIdx = rows.length - 1; let lastRow = rows[targetIdx];
-            if (lastRow.itemNo.trim() !== '' || lastRow.name.trim() !== '' || lastRow.barcode.trim() !== '') { if(addNewRowData()) targetIdx = rows.length - 1; }
+            let targetIdx = window.rows.length - 1; let lastRow = window.rows[targetIdx];
+            if (lastRow.itemNo.trim() !== '' || lastRow.name.trim() !== '' || lastRow.barcode.trim() !== '') { if(addNewRowData()) targetIdx = window.rows.length - 1; }
             if (product) {
-                rows[targetIdx].itemNo = product.itemNo; rows[targetIdx].name = product.name; rows[targetIdx].barcode = product.barcode;
-                rows[targetIdx].boxQty = product.boxQty; rows[targetIdx].price = product[settings.priceLevel] || 0;
-            } else { rows[targetIdx].barcode = barcode; }
+                window.rows[targetIdx].itemNo = product.itemNo; window.rows[targetIdx].name = product.name; window.rows[targetIdx].barcode = product.barcode;
+                window.rows[targetIdx].boxQty = product.boxQty; window.rows[targetIdx].price = product[settings.priceLevel] || 0;
+            } else { window.rows[targetIdx].barcode = barcode; }
             renderFullTable();
         }
 
         // ==========================================
-        //  分頁 2/3/4：綜合後台邏輯
+        //  分頁 2/3/4：綜合後台邏輯 (雙軌支援：雲端+單機)
         // ==========================================
         function renderSummaryView(targetDate) {
-            const dailyOrders = savedOrders.filter(o => o.date === targetDate);
+            const dailyOrders = window.savedOrders.filter(o => o.date === targetDate);
             let sumSubtotal = 0, sumTax = 0, sumTotal = 0, html = '';
             dailyOrders.forEach((order, idx) => {
                 sumSubtotal += order.subtotal; sumTax += order.tax; sumTotal += order.total;
@@ -609,20 +689,53 @@
         }
 
         window.toggleDetails = (id) => document.getElementById(`details-${id}`)?.classList.toggle('hidden');
-        window.deleteSavedOrder = (id, d) => { if(confirm("刪除歷史訂單？")) { savedOrders = savedOrders.filter(o => o.id !== id); localStorage.setItem('erp_saved_orders_v1', JSON.stringify(savedOrders)); updateDbStatus(); renderSummaryView(d); } };
-        window.exportHistoryOrder = (id) => { const order = savedOrders.find(o => o.id === id); if(order) doExportCSV(order); };
+        
+        window.deleteSavedOrder = async (id, d) => { 
+            if(confirm("確定刪除這筆歷史訂單？")) { 
+                // 本機刪除
+                window.savedOrders = window.savedOrders.filter(o => o.id !== id);
+                localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
+                
+                // 若雲端連線正常，同步刪除
+                if (currentUser) {
+                    await deleteDoc(getDocRef('orders', id));
+                }
+                
+                updateDbStatus();
+                renderSummaryView(d);
+            } 
+        };
+        
+        window.exportHistoryOrder = (id) => { const order = window.savedOrders.find(o => o.id === id); if(order) doExportCSV(order); };
 
         function renderCustomerTable() {
-            let html = ''; customers.forEach((c, index) => { html += `<tr class="border-b hover:bg-gray-50"><td class="p-3 font-semibold text-blue-700">${c.code}</td><td class="p-3">${c.name}</td><td class="p-3 text-gray-600">${c.priceLevel}</td><td class="p-3 text-center"><button onclick="deleteCustomer(${index})" class="text-red-500 p-1.5 rounded">${iconTrash}</button></td></tr>`; });
-            custTbody.innerHTML = html; customers.length === 0 ? document.getElementById('no-customer-msg').classList.remove('hidden') : document.getElementById('no-customer-msg').classList.add('hidden');
+            let html = ''; window.customers.forEach((c, index) => { html += `<tr class="border-b hover:bg-gray-50"><td class="p-3 font-semibold text-blue-700">${c.code}</td><td class="p-3">${c.name}</td><td class="p-3 text-gray-600">${c.priceLevel}</td><td class="p-3 text-center"><button onclick="deleteCustomer(${index})" class="text-red-500 p-1.5 rounded">${iconTrash}</button></td></tr>`; });
+            custTbody.innerHTML = html; window.customers.length === 0 ? document.getElementById('no-customer-msg').classList.remove('hidden') : document.getElementById('no-customer-msg').classList.add('hidden');
         }
-        window.deleteCustomer = (i) => { if(confirm('刪除客戶資料？')){ customers.splice(i,1); localStorage.setItem('erp_customers_v1', JSON.stringify(customers)); renderCustomerTable(); updateDbStatus(); }};
+        
+        window.deleteCustomer = async (i) => { 
+            if(confirm('刪除客戶資料？')){ 
+                const code = window.customers[i].code;
+                
+                // 本機刪除
+                window.customers.splice(i, 1);
+                localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
+                
+                // 若雲端連線正常，同步刪除
+                if (currentUser) {
+                    await deleteDoc(getDocRef('customers', code));
+                }
+
+                updateDbStatus();
+                renderCustomerTable();
+            }
+        };
 
         function renderProductTable(searchTerm = '') {
-            let html = ''; let filtered = products;
-            if(searchTerm.trim() !== '') { const term = searchTerm.toLowerCase(); filtered = products.filter(p => p.itemNo.toLowerCase().includes(term) || p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.toString().includes(term))); }
+            let html = ''; let filtered = window.products;
+            if(searchTerm.trim() !== '') { const term = searchTerm.toLowerCase(); filtered = window.products.filter(p => p.itemNo.toLowerCase().includes(term) || p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.toString().includes(term))); }
             filtered.forEach((p, idx) => {
-                const realIdx = products.indexOf(p);
+                const realIdx = window.products.indexOf(p);
                 html += `<tr class="border-b border-gray-100 hover:bg-slate-50"><td class="p-2 font-semibold text-indigo-700">${p.itemNo}</td><td class="p-2 text-gray-600">${p.barcode || '-'}</td><td class="p-2 text-gray-800">${p.name}</td><td class="p-2 text-center text-gray-500">${p.boxQty || 1}</td><td class="p-2 text-right text-gray-700">$${p.p1 || 0}</td><td class="p-2 text-right text-gray-700">$${p.p2 || 0}</td><td class="p-2 text-right text-gray-700">$${p.p3 || 0}</td><td class="p-2 text-right text-gray-700">$${p.p4 || 0}</td><td class="p-2 text-center"><button onclick="editProduct(${realIdx})" class="text-blue-500 p-1 rounded">${iconEdit}</button><button onclick="deleteProduct(${realIdx})" class="text-red-500 p-1 rounded ml-1">${iconTrash}</button></td></tr>`;
             });
             prodTbody.innerHTML = html; filtered.length === 0 ? document.getElementById('no-product-msg').classList.remove('hidden') : document.getElementById('no-product-msg').classList.add('hidden');
@@ -637,24 +750,59 @@
         });
 
         window.editProduct = function(idx) {
-            const p = products[idx]; document.getElementById('prod-modal-title').innerText = '編輯商品'; document.getElementById('pm-idx').value = idx;
+            const p = window.products[idx]; document.getElementById('prod-modal-title').innerText = '編輯商品'; document.getElementById('pm-idx').value = idx;
             document.getElementById('pm-no').value = p.itemNo; document.getElementById('pm-bar').value = p.barcode || ''; document.getElementById('pm-name').value = p.name; document.getElementById('pm-box').value = p.boxQty || 1;
             document.getElementById('pm-p1').value = p.p1 || ''; document.getElementById('pm-p2').value = p.p2 || ''; document.getElementById('pm-p3').value = p.p3 || ''; document.getElementById('pm-p4').value = p.p4 || '';
             document.getElementById('product-modal').classList.remove('hidden');
         }
 
-        window.deleteProduct = function(idx) { if(confirm('刪除這項商品嗎？')) { products.splice(idx, 1); localStorage.setItem('erp_products_system_v4', JSON.stringify(products)); updateDbStatus(); renderProductTable(document.getElementById('prod-search').value); } }
+        window.deleteProduct = async function(idx) { 
+            if(confirm('刪除這項商品嗎？')) { 
+                const itemNo = window.products[idx].itemNo;
+
+                // 本機刪除
+                window.products.splice(idx, 1);
+                localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
+                
+                // 雲端同步刪除
+                if (currentUser) {
+                    await deleteDoc(getDocRef('products', itemNo));
+                }
+
+                updateDbStatus();
+                renderProductTable(document.getElementById('prod-search').value);
+            } 
+        }
+        
         window.closeProductModal = function() { document.getElementById('product-modal').classList.add('hidden'); }
-        window.saveProductModal = function() {
-            const idx = parseInt(document.getElementById('pm-idx').value); const itemNo = document.getElementById('pm-no').value.trim().toUpperCase(); const name = document.getElementById('pm-name').value.trim();
+        
+        window.saveProductModal = async function() {
+            const idx = parseInt(document.getElementById('pm-idx').value); 
+            const itemNo = document.getElementById('pm-no').value.trim().toUpperCase(); 
+            const name = document.getElementById('pm-name').value.trim();
             if(!itemNo || !name) { alert('品號與品名為必填！'); return; }
+            
             const newProd = { itemNo, barcode: document.getElementById('pm-bar').value.trim(), name, boxQty: parseInt(document.getElementById('pm-box').value) || 1, p1: parseFloat(document.getElementById('pm-p1').value) || 0, p2: parseFloat(document.getElementById('pm-p2').value) || 0, p3: parseFloat(document.getElementById('pm-p3').value) || 0, p4: parseFloat(document.getElementById('pm-p4').value) || 0 };
-            if(idx === -1) { if(products.some(p => p.itemNo === itemNo)) { alert('品號已存在！'); return; } products.push(newProd); } else { products[idx] = newProd; }
-            localStorage.setItem('erp_products_system_v4', JSON.stringify(products)); updateDbStatus(); renderProductTable(document.getElementById('prod-search').value); closeProductModal(); alert('商品儲存成功！');
+            
+            if(idx === -1 && window.products.some(p => p.itemNo === itemNo)) { alert('品號已存在！'); return; } 
+            
+            // 本機儲存
+            if(idx === -1) window.products.push(newProd); else window.products[idx] = newProd;
+            localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
+
+            // 雲端同步
+            if (currentUser) {
+                await setDoc(getDocRef('products', newProd.itemNo), newProd);
+            }
+            
+            updateDbStatus();
+            renderProductTable(document.getElementById('prod-search').value);
+            window.closeProductModal(); 
+            alert('商品儲存成功！');
         }
 
         // ==========================================
-        //  綁定事件與處理
+        //  綁定事件與處理 (雙軌支援：雲端+單機)
         // ==========================================
         function bindStaticEvents() {
             const tabs = [ { nav: navs.order, view: views.order }, { nav: navs.summary, view: views.summary }, { nav: navs.customer, view: views.customer }, { nav: navs.product, view: views.product } ];
@@ -674,31 +822,50 @@
 
             document.getElementById('price-level').addEventListener('change', e => {
                 settings.priceLevel = e.target.value;
-                if (confirm('是否將已輸入的項目更新為新的價格標準？')) { rows.forEach(row => { const p = products.find(x => x.itemNo.toUpperCase() === row.itemNo.toUpperCase()); if (p) row.price = p[settings.priceLevel] || 0; }); renderFullTable(); }
+                if (confirm('是否將已輸入的項目更新為新的價格標準？')) { window.rows.forEach(row => { const p = window.products.find(x => x.itemNo.toUpperCase() === row.itemNo.toUpperCase()); if (p) row.price = p[settings.priceLevel] || 0; }); renderFullTable(); }
             });
 
             document.getElementById('btn-add-row').addEventListener('click', () => { if(addNewRowData()) renderFullTable(); });
 
-            document.getElementById('btn-save-order').addEventListener('click', () => {
+            // 儲存訂單 (雙軌)
+            document.getElementById('btn-save-order').addEventListener('click', async () => {
                 if (!settings.customerName.trim()) { alert('請填寫客戶名稱！'); document.getElementById('customer-name').focus(); return; }
-                const validRows = rows.filter(r => r.itemNo.trim() !== '' || r.barcode.trim() !== '');
+                const validRows = window.rows.filter(r => r.itemNo.trim() !== '' || r.barcode.trim() !== '');
                 if (validRows.length === 0) { alert('請至少輸入一筆商品！'); return; }
 
-                savedOrders.push({
+                const newOrder = {
                     id: 'ORD_' + Date.now(), date: settings.date, invoiceNo: settings.invoiceNo, customerCode: settings.customerCode, customerName: settings.customerName,
-                    rows: JSON.parse(JSON.stringify(validRows)), subtotal: currentGlobalTotal.subtotal, tax: currentGlobalTotal.tax, total: currentGlobalTotal.total
-                });
+                    rows: JSON.parse(JSON.stringify(validRows)), subtotal: currentGlobalTotal.subtotal, tax: currentGlobalTotal.tax, total: currentGlobalTotal.total, createdAt: new Date().toISOString()
+                };
+
                 try {
-                    localStorage.setItem('erp_saved_orders_v1', JSON.stringify(savedOrders)); updateDbStatus();
-                    if(settings.invoiceNo) { settings.invoiceNo = incrementString(settings.invoiceNo); document.getElementById('invoice-no').value = settings.invoiceNo; localStorage.setItem('erp_latest_invoice', settings.invoiceNo); }
-                    alert(`訂單儲存成功！`);
-                    if(confirm("建立下一筆新單？")) { settings.customerName = ''; settings.customerCode = ''; document.getElementById('customer-name').value = ''; document.getElementById('customer-code').value = ''; rows = []; addNewRowData(); renderFullTable(); }
-                } catch(e) { alert("儲存失敗，空間不足。"); }
+                    // 本機儲存
+                    window.savedOrders.push(newOrder);
+                    localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
+                    updateDbStatus();
+
+                    // 雲端儲存
+                    if (currentUser) {
+                        await setDoc(getDocRef('orders', newOrder.id), newOrder);
+                    }
+                    
+                    if(settings.invoiceNo) { 
+                        settings.invoiceNo = incrementString(settings.invoiceNo); 
+                        document.getElementById('invoice-no').value = settings.invoiceNo; 
+                        localStorage.setItem('erp_latest_invoice', settings.invoiceNo); 
+                    }
+                    
+                    const msg = currentUser ? '訂單雲端同步成功！' : '訂單儲存成功！(目前為單機離線狀態)';
+                    alert(msg);
+
+                    if(confirm("建立下一筆新單？")) { settings.customerName = ''; settings.customerCode = ''; document.getElementById('customer-name').value = ''; document.getElementById('customer-code').value = ''; window.rows = []; addNewRowData(); renderFullTable(); }
+                } catch(e) { alert("儲存發生錯誤。"); console.error(e); }
             });
 
+            // 批次匯入產品 (雙軌)
             document.getElementById('file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
-                reader.onload = (event) => {
+                reader.onload = async (event) => {
                     const lines = event.target.result.split(/\r?\n/); let newProducts = []; let headerFound = false; let headerIdx = {};
 
                     for (let i = 0; i < lines.length; i++) {
@@ -720,14 +887,32 @@
                             });
                         }
                     }
-                    if (newProducts.length > 0) { products = newProducts; try { localStorage.setItem('erp_products_system_v4', JSON.stringify(products)); updateDbStatus(); renderProductTable(); alert(`成功載入 ${products.length} 筆產品！`); } catch(err) {} } else { alert('無法解析檔案格式。'); }
+                    if (newProducts.length > 0) { 
+                        // 本機儲存
+                        window.products = newProducts;
+                        localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
+                        renderProductTable();
+                        updateDbStatus();
+
+                        // 雲端儲存
+                        if (currentUser) {
+                            document.getElementById('db-status').innerText = '正在批次上傳至雲端...';
+                            try {
+                                for(const p of newProducts) { await setDoc(getDocRef('products', p.itemNo), p); }
+                                alert(`成功上傳 ${newProducts.length} 筆產品至雲端！`);
+                            } catch(err) { alert('雲端上傳發生錯誤，但本機已儲存。'); console.error(err); }
+                        } else {
+                            alert(`成功載入 ${newProducts.length} 筆產品！(單機模式)`);
+                        }
+                    } else { alert('無法解析檔案格式。'); }
                     e.target.value = '';
                 }; reader.readAsText(file, 'utf-8'); 
             });
 
+            // 批次匯入客戶 (雙軌)
             document.getElementById('cust-file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
-                reader.onload = (event) => {
+                reader.onload = async (event) => {
                     const lines = event.target.result.split(/\r?\n/); let newCustomers = []; let headerFound = false; let headerIdx = {};
                     for (let i = 0; i < lines.length; i++) {
                         const cols = lines[i].split(',').map(col => col.trim());
@@ -742,37 +927,72 @@
                         }
                     }
                     if (newCustomers.length > 0) {
-                        if (confirm(`偵測到 ${newCustomers.length} 筆客戶。\n\n按 [確定] = 與現有資料合併更新\n按 [取消] = 完全覆蓋`)) { newCustomers.forEach(nc => { const existingIdx = customers.findIndex(c => c.code === nc.code); if (existingIdx >= 0) customers[existingIdx] = nc; else customers.push(nc); }); } else { customers = newCustomers; }
-                        localStorage.setItem('erp_customers_v1', JSON.stringify(customers)); renderCustomerTable(); updateDbStatus(); alert('客戶資料匯入成功！');
+                        const msg = currentUser ? `偵測到 ${newCustomers.length} 筆客戶。\n即將批次匯入並上傳至雲端資料庫？` : `偵測到 ${newCustomers.length} 筆客戶。\n是否匯入至單機資料庫？`;
+                        if (confirm(msg)) { 
+                            // 覆蓋寫入本機
+                            window.customers = newCustomers;
+                            localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
+                            renderCustomerTable();
+                            updateDbStatus();
+
+                            if (currentUser) {
+                                document.getElementById('db-status').innerText = '正在批次上傳至雲端...';
+                                try {
+                                    for(const nc of newCustomers) { await setDoc(getDocRef('customers', nc.code), nc); }
+                                    alert('客戶資料雲端匯入成功！');
+                                } catch(err) { alert('雲端上傳發生錯誤，但本機已儲存。'); console.error(err); }
+                            } else {
+                                alert('客戶資料匯入成功！(單機模式)');
+                            }
+                        }
                     } else { alert('無法解析檔案。'); }
                     e.target.value = '';
                 }; reader.readAsText(file, 'utf-8'); 
             });
 
-            document.getElementById('btn-save-customer').addEventListener('click', () => {
+            // 儲存單一客戶 (雙軌)
+            document.getElementById('btn-save-customer').addEventListener('click', async () => {
                 const code = document.getElementById('new-cust-code').value.trim().toUpperCase(); const name = document.getElementById('new-cust-name').value.trim(); const priceLevel = document.getElementById('new-cust-price').value;
                 if(!code || !name) { alert('請填寫代號與名稱！'); return; }
-                const existingIdx = customers.findIndex(c => c.code === code);
-                if(existingIdx >= 0) { if(confirm('代號已存在，覆蓋更新？')) customers[existingIdx] = { code, name, priceLevel }; else return; } else customers.push({ code, name, priceLevel });
-                localStorage.setItem('erp_customers_v1', JSON.stringify(customers)); renderCustomerTable(); updateDbStatus(); alert('儲存成功！'); document.getElementById('new-cust-code').value = ''; document.getElementById('new-cust-name').value = '';
+                const newCust = { code, name, priceLevel };
+                
+                const existingIdx = window.customers.findIndex(c => c.code === code);
+                if(existingIdx >= 0) { 
+                    if(confirm('代號已存在，確認覆蓋更新？')) window.customers[existingIdx] = newCust; else return;
+                } else {
+                    window.customers.push(newCust);
+                }
+                
+                // 本機儲存
+                localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
+                renderCustomerTable();
+                updateDbStatus();
+
+                // 雲端儲存
+                if (currentUser) {
+                    await setDoc(getDocRef('customers', code), newCust);
+                }
+
+                alert(currentUser ? '客戶雲端儲存成功！' : '客戶儲存成功！(單機模式)'); 
+                document.getElementById('new-cust-code').value = ''; document.getElementById('new-cust-name').value = '';
             });
 
             document.getElementById('customer-code').addEventListener('input', (e) => {
                 const code = e.target.value.trim().toUpperCase(); settings.customerCode = code; if (!code) return;
-                const cust = customers.find(c => c.code === code);
+                const cust = window.customers.find(c => c.code === code);
                 if (cust) {
                     document.getElementById('customer-name').value = cust.name; settings.customerName = cust.name;
                     if (settings.priceLevel !== cust.priceLevel) {
                         document.getElementById('price-level').value = cust.priceLevel; settings.priceLevel = cust.priceLevel;
-                        if (rows.some(r => r.itemNo.trim() !== '')) { if(confirm(`帶入【${cust.name}】價格，同步更新表格內商品價格？`)) { rows.forEach(row => { const p = products.find(x => x.itemNo.toUpperCase() === row.itemNo.toUpperCase()); if (p) row.price = p[settings.priceLevel] || 0; }); renderFullTable(); } }
+                        if (window.rows.some(r => r.itemNo.trim() !== '')) { if(confirm(`帶入【${cust.name}】價格，同步更新表格內商品價格？`)) { window.rows.forEach(row => { const p = window.products.find(x => x.itemNo.toUpperCase() === row.itemNo.toUpperCase()); if (p) row.price = p[settings.priceLevel] || 0; }); renderFullTable(); } }
                     }
                 }
             });
 
-            document.getElementById('btn-export').addEventListener('click', () => doExportCSV({ customerCode: settings.customerCode, customerName: settings.customerName, date: settings.date, invoiceNo: settings.invoiceNo, rows: rows.filter(r => r.itemNo.trim() !== '' || r.boxInput > 0 || r.retailInput > 0).length ? rows.filter(r => r.itemNo.trim() !== '' || r.boxInput > 0 || r.retailInput > 0) : rows, subtotal: currentGlobalTotal.subtotal, tax: currentGlobalTotal.tax, total: currentGlobalTotal.total }));
+            document.getElementById('btn-export').addEventListener('click', () => doExportCSV({ customerCode: settings.customerCode, customerName: settings.customerName, date: settings.date, invoiceNo: settings.invoiceNo, rows: window.rows.filter(r => r.itemNo.trim() !== '' || r.boxInput > 0 || r.retailInput > 0).length ? window.rows.filter(r => r.itemNo.trim() !== '' || r.boxInput > 0 || r.retailInput > 0) : window.rows, subtotal: currentGlobalTotal.subtotal, tax: currentGlobalTotal.tax, total: currentGlobalTotal.total }));
 
             document.getElementById('btn-export-daily').addEventListener('click', () => {
-                const targetDate = document.getElementById('filter-date').value; const dailyOrders = savedOrders.filter(o => o.date === targetDate);
+                const targetDate = document.getElementById('filter-date').value; const dailyOrders = window.savedOrders.filter(o => o.date === targetDate);
                 if (dailyOrders.length === 0) { alert('沒有訂單！'); return; }
                 let csvContent = '\uFEFF'; csvContent += `報表日期：,${targetDate}\n\n項次,發票號碼,客戶代號,客戶名稱,商品明細 (品號*數量),未稅小計,營業稅,訂單總計\n`;
                 let grandSubtotal = 0, grandTax = 0, grandTotal = 0;
@@ -786,22 +1006,35 @@
             });
             
             document.getElementById('btn-backup-db').addEventListener('click', () => {
-                if (savedOrders.length === 0) return alert('無歷史訂單可備份！');
-                const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(savedOrders, null, 2)], { type: 'application/json' })); a.download = `報價系統_歷史訂單備份_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.json`; a.click();
+                if (window.savedOrders.length === 0) return alert('無歷史訂單可備份！');
+                const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(window.savedOrders, null, 2)], { type: 'application/json' })); a.download = `報價系統_歷史訂單備份_${new Date().toISOString().split('T')[0].replace(/-/g, '')}.json`; a.click();
             });
 
             document.getElementById('file-restore').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
-                reader.onload = (event) => {
+                reader.onload = async (event) => {
                     try {
                         const importedData = JSON.parse(event.target.result);
                         if (Array.isArray(importedData)) {
-                            if(confirm(`偵測到 ${importedData.length} 筆歷史訂單。\n請問要「合併」現有資料，還是「完全覆蓋」？\n\n按 [確定] = 與現有資料合併\n按 [取消] = 完全覆蓋（捨棄現有歷史紀錄）`)) {
-                                const existingIds = new Set(savedOrders.map(o => o.id)); importedData.forEach(o => { if(!existingIds.has(o.id)) savedOrders.push(o); });
-                            } else { savedOrders = importedData; }
-                            localStorage.setItem('erp_saved_orders_v1', JSON.stringify(savedOrders)); updateDbStatus(); renderSummaryView(document.getElementById('filter-date').value); alert('歷史資料還原成功！');
+                            if(confirm(`偵測到 ${importedData.length} 筆歷史訂單。\n即將還原並寫入系統庫，是否繼續？`)) {
+                                // 本機覆蓋合併
+                                const existingIds = new Set(window.savedOrders.map(o => o.id)); 
+                                importedData.forEach(o => { if(!existingIds.has(o.id)) window.savedOrders.push(o); });
+                                localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders)); 
+
+                                // 雲端同步
+                                if (currentUser) {
+                                    document.getElementById('db-status').innerText = '正在還原至雲端...';
+                                    for(const o of importedData) { await setDoc(getDocRef('orders', o.id), o); }
+                                    alert('歷史資料雲端還原成功！');
+                                } else {
+                                    alert('歷史資料本機還原成功！');
+                                }
+                                updateDbStatus(); 
+                                renderSummaryView(document.getElementById('filter-date').value); 
+                            }
                         } else alert('檔案格式錯誤！');
-                    } catch (err) { alert('讀取失敗，請確認是否為正確的備份檔(.json)！'); } e.target.value = '';
+                    } catch (err) { alert('讀取失敗，請確認是否為正確的備份檔(.json)！'); console.error(err); } e.target.value = '';
                 }; reader.readAsText(file);
             });
         }
