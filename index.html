@@ -286,7 +286,7 @@
             
             <div class="p-2 md:p-4 flex-1 bg-black flex flex-col justify-center items-center relative overflow-hidden" style="min-height: 350px;">
                 <div id="reader" class="w-full max-w-[500px] h-full flex items-center justify-center text-white text-center">
-                    <!-- HTML5 QRCode 渲染區 -->
+                    正在啟動相機，請稍候...
                 </div>
             </div>
             
@@ -350,7 +350,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Firebase 資料庫路徑規範 (修改為直接讀取根目錄，對齊您上傳的路徑)
+        // Firebase 資料庫路徑規範 (直接讀取根目錄)
         const getColRef = (colName) => collection(db, colName);
         const getDocRef = (colName, docId) => doc(db, colName, docId);
 
@@ -390,7 +390,7 @@
         //  初始化系統與雙軌連線(單機/雲端)
         // ==========================================
         async function init() {
-            // 1. 優先載入本機端資料 (作為離線或驗證失敗時的備用資料)
+            // 1. 優先載入本機端資料
             try {
                 const savedProd = localStorage.getItem('erp_products_system_v4'); if (savedProd) window.products = JSON.parse(savedProd);
                 const savedHistory = localStorage.getItem('erp_saved_orders_v1'); if (savedHistory) window.savedOrders = JSON.parse(savedHistory);
@@ -402,7 +402,6 @@
             document.getElementById('doc-date').value = settings.date;
             document.getElementById('filter-date').value = settings.date;
 
-            // 即便雲端還沒連上，也先用本機資料把畫面畫出來
             addNewRowData();
             renderFullTable();
             renderCustomerTable();
@@ -417,7 +416,6 @@
             } catch (error) {
                 console.warn("Firebase Auth Error:", error);
                 if (error.code === 'auth/configuration-not-found') {
-                    // 若抓到沒開權限的錯誤，給予明確提示，且不會中斷系統 (單機模式繼續運作)
                     document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (尚未啟用 Firebase 匿名登入)';
                 } else {
                     document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (網路或資料庫連線失敗)';
@@ -568,7 +566,7 @@
         }
 
         // ==========================================
-        //  相機模組 (最高相容性設定，移除所有開場系統提示)
+        //  相機模組 (最高相容性設定)
         // ==========================================
         const initScanner = () => {
             const scannerModal = document.getElementById('scanner-modal');
@@ -600,18 +598,14 @@
                     ]
                 };
 
-                // 只請求後置鏡頭，不加上可能導致當機的嚴格畫質與對焦參數
                 const constraints = { facingMode: "environment" };
 
                 window.html5QrCode.start(constraints, config, onScanSuccess, onScanFailure)
                 .catch((err) => {
                     console.warn("後置鏡頭啟動失敗，嘗試備用模式...", err);
-                    
-                    // 降級模式：不強制指定鏡頭
                     window.html5QrCode.start({ video: true }, config, onScanSuccess, onScanFailure)
                     .catch(err2 => {
                         console.error("相機啟動完全失敗", err2);
-                        // 不使用彈窗，將錯誤溫和地顯示於畫面中
                         readerDiv.innerHTML = '<div class="text-white text-center mt-10 p-4">⚠️ 無法啟動相機<br><span class="text-sm text-gray-400 mt-2 block">請確認瀏覽器已允許使用相機權限。<br>若仍無法開啟，請嘗試重新整理網頁。</span></div>';
                     });
                 });
@@ -686,15 +680,9 @@
         
         window.deleteSavedOrder = async (id, d) => { 
             if(confirm("確定刪除這筆歷史訂單？")) { 
-                // 本機刪除
                 window.savedOrders = window.savedOrders.filter(o => o.id !== id);
                 localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
-                
-                // 若雲端連線正常，同步刪除
-                if (currentUser) {
-                    await deleteDoc(getDocRef('orders', id));
-                }
-                
+                if (currentUser) { await deleteDoc(getDocRef('orders', id)); }
                 updateDbStatus();
                 renderSummaryView(d);
             } 
@@ -710,16 +698,9 @@
         window.deleteCustomer = async (i) => { 
             if(confirm('刪除客戶資料？')){ 
                 const code = window.customers[i].code;
-                
-                // 本機刪除
                 window.customers.splice(i, 1);
                 localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
-                
-                // 若雲端連線正常，同步刪除
-                if (currentUser) {
-                    await deleteDoc(getDocRef('customers', code));
-                }
-
+                if (currentUser) { await deleteDoc(getDocRef('customers', code)); }
                 updateDbStatus();
                 renderCustomerTable();
             }
@@ -753,16 +734,9 @@
         window.deleteProduct = async function(idx) { 
             if(confirm('刪除這項商品嗎？')) { 
                 const itemNo = window.products[idx].itemNo;
-
-                // 本機刪除
                 window.products.splice(idx, 1);
                 localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
-                
-                // 雲端同步刪除
-                if (currentUser) {
-                    await deleteDoc(getDocRef('products', itemNo));
-                }
-
+                if (currentUser) { await deleteDoc(getDocRef('products', itemNo)); }
                 updateDbStatus();
                 renderProductTable(document.getElementById('prod-search').value);
             } 
@@ -780,14 +754,10 @@
             
             if(idx === -1 && window.products.some(p => p.itemNo === itemNo)) { alert('品號已存在！'); return; } 
             
-            // 本機儲存
             if(idx === -1) window.products.push(newProd); else window.products[idx] = newProd;
             localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
 
-            // 雲端同步
-            if (currentUser) {
-                await setDoc(getDocRef('products', newProd.itemNo), newProd);
-            }
+            if (currentUser) { await setDoc(getDocRef('products', newProd.itemNo), newProd); }
             
             updateDbStatus();
             renderProductTable(document.getElementById('prod-search').value);
@@ -796,7 +766,7 @@
         }
 
         // ==========================================
-        //  綁定事件與處理 (雙軌支援：雲端+單機)
+        //  CSV 批次匯入解析引擎 (模糊對應防錯版)
         // ==========================================
         function bindStaticEvents() {
             const tabs = [ { nav: navs.order, view: views.order }, { nav: navs.summary, view: views.summary }, { nav: navs.customer, view: views.customer }, { nav: navs.product, view: views.product } ];
@@ -821,7 +791,6 @@
 
             document.getElementById('btn-add-row').addEventListener('click', () => { if(addNewRowData()) renderFullTable(); });
 
-            // 儲存訂單 (雙軌)
             document.getElementById('btn-save-order').addEventListener('click', async () => {
                 if (!settings.customerName.trim()) { alert('請填寫客戶名稱！'); document.getElementById('customer-name').focus(); return; }
                 const validRows = window.rows.filter(r => r.itemNo.trim() !== '' || r.barcode.trim() !== '');
@@ -833,15 +802,11 @@
                 };
 
                 try {
-                    // 本機儲存
                     window.savedOrders.push(newOrder);
                     localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders));
                     updateDbStatus();
 
-                    // 雲端儲存
-                    if (currentUser) {
-                        await setDoc(getDocRef('orders', newOrder.id), newOrder);
-                    }
+                    if (currentUser) { await setDoc(getDocRef('orders', newOrder.id), newOrder); }
                     
                     if(settings.invoiceNo) { 
                         settings.invoiceNo = incrementString(settings.invoiceNo); 
@@ -856,40 +821,56 @@
                 } catch(e) { alert("儲存發生錯誤。"); console.error(e); }
             });
 
-            // 批次匯入產品 (雙軌支援：Tab或逗號分隔)
+            // 批次匯入產品 (自動濾除 BOM 與引號，模糊對應標題)
             document.getElementById('file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
                     const lines = event.target.result.split(/\r?\n/); let newProducts = []; let headerFound = false; let headerIdx = {};
 
                     for (let i = 0; i < lines.length; i++) {
-                        // 支援逗號 (CSV) 或是 Tab (TSV) 分隔
-                        const cols = lines[i].split(/,|\t/).map(col => col.trim());
+                        // 以正則表達式清除 Excel 存檔時產生的隱形 BOM (\uFEFF) 與雙引號，並去除前後空白
+                        const cols = lines[i].split(/,|\t/).map(col => col.replace(/^["\uFEFF]+|["]+$/g, '').trim());
+                        
                         if (!headerFound) {
-                            if (cols.includes('品號') && cols.includes('品名')) {
+                            // 模糊搜尋標題位置
+                            const itemNoIdx = cols.findIndex(c => c.includes('品號'));
+                            const nameIdx = cols.findIndex(c => c.includes('品名'));
+                            
+                            if (itemNoIdx !== -1 && nameIdx !== -1) {
                                 headerFound = true;
                                 headerIdx = {
-                                    itemNo: cols.indexOf('品號'), name: cols.indexOf('品名'), boxQty: cols.indexOf('箱入數'), barcode: cols.indexOf('條碼編號'),
-                                    p1: cols.indexOf('經銷價'), p2: cols.indexOf('中盤價'), p3: cols.indexOf('店頭價\u3000') !== -1 ? cols.indexOf('店頭價\u3000') : cols.indexOf('店頭價'), p4: cols.indexOf('末端價'),
+                                    itemNo: itemNoIdx,
+                                    name: nameIdx,
+                                    boxQty: cols.findIndex(c => c.includes('箱入數')),
+                                    barcode: cols.findIndex(c => c.includes('條碼')),
+                                    p1: cols.findIndex(c => c.includes('經銷')),
+                                    p2: cols.findIndex(c => c.includes('中盤')),
+                                    p3: cols.findIndex(c => c.includes('店頭')),
+                                    p4: cols.findIndex(c => c.includes('末端')),
                                 };
                             }
                             continue;
                         }
-                        if (headerFound && cols[headerIdx.itemNo]) {
+                        
+                        if (headerFound && headerIdx.itemNo !== -1 && cols[headerIdx.itemNo]) {
                             newProducts.push({
-                                itemNo: cols[headerIdx.itemNo], name: cols[headerIdx.name], boxQty: Number(cols[headerIdx.boxQty]) || 1, barcode: cols[headerIdx.barcode] || '',
-                                p1: Number(cols[headerIdx.p1]) || 0, p2: Number(cols[headerIdx.p2]) || 0, p3: Number(cols[headerIdx.p3]) || 0, p4: Number(cols[headerIdx.p4]) || 0,
+                                itemNo: cols[headerIdx.itemNo], 
+                                name: cols[headerIdx.name] || '', 
+                                boxQty: Number(cols[headerIdx.boxQty]) || 1, 
+                                barcode: headerIdx.barcode !== -1 ? cols[headerIdx.barcode] : '',
+                                p1: headerIdx.p1 !== -1 ? Number(cols[headerIdx.p1]) || 0 : 0, 
+                                p2: headerIdx.p2 !== -1 ? Number(cols[headerIdx.p2]) || 0 : 0, 
+                                p3: headerIdx.p3 !== -1 ? Number(cols[headerIdx.p3]) || 0 : 0, 
+                                p4: headerIdx.p4 !== -1 ? Number(cols[headerIdx.p4]) || 0 : 0,
                             });
                         }
                     }
                     if (newProducts.length > 0) { 
-                        // 本機儲存
                         window.products = newProducts;
                         localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
                         renderProductTable();
                         updateDbStatus();
 
-                        // 雲端儲存
                         if (currentUser) {
                             document.getElementById('db-status').innerText = '正在批次上傳至雲端...';
                             try {
@@ -899,33 +880,46 @@
                         } else {
                             alert(`成功載入 ${newProducts.length} 筆產品！(單機模式)`);
                         }
-                    } else { alert('無法解析檔案格式。'); }
+                    } else { alert('無法解析檔案格式。請確保檔案含有「品號」與「品名」標題。'); }
                     e.target.value = '';
                 }; reader.readAsText(file, 'utf-8'); 
             });
 
-            // 批次匯入客戶 (雙軌支援：Tab或逗號分隔)
+            // 批次匯入客戶 (自動濾除 BOM 與引號，模糊對應標題)
             document.getElementById('cust-file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
                     const lines = event.target.result.split(/\r?\n/); let newCustomers = []; let headerFound = false; let headerIdx = {};
+                    
                     for (let i = 0; i < lines.length; i++) {
-                        // 支援逗號 (CSV) 或是 Tab (TSV) 分隔
-                        const cols = lines[i].split(/,|\t/).map(col => col.trim());
+                        const cols = lines[i].split(/,|\t/).map(col => col.replace(/^["\uFEFF]+|["]+$/g, '').trim());
+                        
                         if (!headerFound) {
-                            const codeIdx = cols.findIndex(c => c.includes('代號') || c.includes('編號')); const nameIdx = cols.findIndex(c => c.includes('名稱') || c.includes('簡稱') || c.includes('客戶')); const priceIdx = cols.findIndex(c => c.includes('價格') || c.includes('等級') || c.includes('售價'));
-                            if (codeIdx !== -1 && nameIdx !== -1) { headerFound = true; headerIdx = { code: codeIdx, name: nameIdx, price: priceIdx }; } continue;
+                            const codeIdx = cols.findIndex(c => c.includes('代號') || c.includes('編號')); 
+                            const nameIdx = cols.findIndex(c => c.includes('名稱') || c.includes('簡稱') || c.includes('客戶')); 
+                            const priceIdx = cols.findIndex(c => c.includes('價格') || c.includes('等級') || c.includes('售價'));
+                            if (codeIdx !== -1 && nameIdx !== -1) { 
+                                headerFound = true; 
+                                headerIdx = { code: codeIdx, name: nameIdx, price: priceIdx }; 
+                            } 
+                            continue;
                         }
+                        
                         if (headerFound && cols[headerIdx.code] && cols[headerIdx.name]) {
                             let pLevel = 'p1';
-                            if (headerIdx.price !== -1 && cols[headerIdx.price]) { const pStr = cols[headerIdx.price].toLowerCase(); if (pStr.includes('中盤') || pStr.includes('p2')) pLevel = 'p2'; else if (pStr.includes('店頭') || pStr.includes('p3')) pLevel = 'p3'; else if (pStr.includes('末端') || pStr.includes('p4')) pLevel = 'p4'; }
+                            if (headerIdx.price !== -1 && cols[headerIdx.price]) { 
+                                const pStr = cols[headerIdx.price].toLowerCase(); 
+                                if (pStr.includes('中盤') || pStr.includes('p2')) pLevel = 'p2'; 
+                                else if (pStr.includes('店頭') || pStr.includes('p3')) pLevel = 'p3'; 
+                                else if (pStr.includes('末端') || pStr.includes('p4')) pLevel = 'p4'; 
+                            }
                             newCustomers.push({ code: cols[headerIdx.code].toUpperCase(), name: cols[headerIdx.name], priceLevel: pLevel });
                         }
                     }
+                    
                     if (newCustomers.length > 0) {
                         const msg = currentUser ? `偵測到 ${newCustomers.length} 筆客戶。\n即將批次匯入並上傳至雲端資料庫？` : `偵測到 ${newCustomers.length} 筆客戶。\n是否匯入至單機資料庫？`;
                         if (confirm(msg)) { 
-                            // 覆蓋寫入本機
                             window.customers = newCustomers;
                             localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
                             renderCustomerTable();
@@ -941,12 +935,11 @@
                                 alert('客戶資料匯入成功！(單機模式)');
                             }
                         }
-                    } else { alert('無法解析檔案。'); }
+                    } else { alert('無法解析檔案。請確保檔案含有「代號」與「名稱」標題。'); }
                     e.target.value = '';
                 }; reader.readAsText(file, 'utf-8'); 
             });
 
-            // 儲存單一客戶 (雙軌)
             document.getElementById('btn-save-customer').addEventListener('click', async () => {
                 const code = document.getElementById('new-cust-code').value.trim().toUpperCase(); const name = document.getElementById('new-cust-name').value.trim(); const priceLevel = document.getElementById('new-cust-price').value;
                 if(!code || !name) { alert('請填寫代號與名稱！'); return; }
@@ -959,15 +952,11 @@
                     window.customers.push(newCust);
                 }
                 
-                // 本機儲存
                 localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
                 renderCustomerTable();
                 updateDbStatus();
 
-                // 雲端儲存
-                if (currentUser) {
-                    await setDoc(getDocRef('customers', code), newCust);
-                }
+                if (currentUser) { await setDoc(getDocRef('customers', code), newCust); }
 
                 alert(currentUser ? '客戶雲端儲存成功！' : '客戶儲存成功！(單機模式)'); 
                 document.getElementById('new-cust-code').value = ''; document.getElementById('new-cust-name').value = '';
@@ -1013,12 +1002,10 @@
                         const importedData = JSON.parse(event.target.result);
                         if (Array.isArray(importedData)) {
                             if(confirm(`偵測到 ${importedData.length} 筆歷史訂單。\n即將還原並寫入系統庫，是否繼續？`)) {
-                                // 本機覆蓋合併
                                 const existingIds = new Set(window.savedOrders.map(o => o.id)); 
                                 importedData.forEach(o => { if(!existingIds.has(o.id)) window.savedOrders.push(o); });
                                 localStorage.setItem('erp_saved_orders_v1', JSON.stringify(window.savedOrders)); 
 
-                                // 雲端同步
                                 if (currentUser) {
                                     document.getElementById('db-status').innerText = '正在還原至雲端...';
                                     for(const o of importedData) { await setDoc(getDocRef('orders', o.id), o); }
