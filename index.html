@@ -862,14 +862,15 @@
                 } catch(e) { alert("儲存發生錯誤。"); console.error(e); }
             });
 
-            // 批次匯入產品 (雙軌)
+            // 批次匯入產品 (雙軌支援：Tab或逗號分隔)
             document.getElementById('file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
                     const lines = event.target.result.split(/\r?\n/); let newProducts = []; let headerFound = false; let headerIdx = {};
 
                     for (let i = 0; i < lines.length; i++) {
-                        const cols = lines[i].split(',').map(col => col.trim());
+                        // 支援逗號 (CSV) 或是 Tab (TSV) 分隔
+                        const cols = lines[i].split(/,|\t/).map(col => col.trim());
                         if (!headerFound) {
                             if (cols.includes('品號') && cols.includes('品名')) {
                                 headerFound = true;
@@ -909,13 +910,14 @@
                 }; reader.readAsText(file, 'utf-8'); 
             });
 
-            // 批次匯入客戶 (雙軌)
+            // 批次匯入客戶 (雙軌支援：Tab或逗號分隔)
             document.getElementById('cust-file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
                     const lines = event.target.result.split(/\r?\n/); let newCustomers = []; let headerFound = false; let headerIdx = {};
                     for (let i = 0; i < lines.length; i++) {
-                        const cols = lines[i].split(',').map(col => col.trim());
+                        // 支援逗號 (CSV) 或是 Tab (TSV) 分隔
+                        const cols = lines[i].split(/,|\t/).map(col => col.trim());
                         if (!headerFound) {
                             const codeIdx = cols.findIndex(c => c.includes('代號') || c.includes('編號')); const nameIdx = cols.findIndex(c => c.includes('名稱') || c.includes('簡稱') || c.includes('客戶')); const priceIdx = cols.findIndex(c => c.includes('價格') || c.includes('等級') || c.includes('售價'));
                             if (codeIdx !== -1 && nameIdx !== -1) { headerFound = true; headerIdx = { code: codeIdx, name: nameIdx, price: priceIdx }; } continue;
