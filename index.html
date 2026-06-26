@@ -200,7 +200,7 @@
                 <div class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-orange-100 border-l-4 border-l-orange-400"><p class="text-xs md:text-sm text-gray-500 font-bold mb-1">稅金</p><p class="text-xl md:text-3xl font-black text-orange-500 truncate" id="dash-tax">$0</p></div>
             </div>
             <!-- 列表 -->
-            <h3 class="font-bold text-lg text-gray-800 mb-3 border-b pb-2">明細列表</h3>
+            <h3 class="font-bold text-lg text-gray-800 mb-3 border-b pb-2">明細列表 (資料自動同步中)</h3>
             <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
                 <table class="w-full text-left border-collapse min-w-[700px]">
                     <thead><tr class="bg-gray-100 text-gray-700"><th class="p-3 w-12 text-center font-bold text-sm border-b">項</th><th class="p-3 font-bold text-sm border-b">客戶名稱</th><th class="p-3 font-bold text-sm border-b text-center">發票</th><th class="p-3 font-bold text-sm text-center border-b">款式</th><th class="p-3 text-right font-bold text-sm border-b">未稅</th><th class="p-3 text-right font-bold text-sm text-red-600 border-b">總計</th><th class="p-3 w-16 text-center font-bold text-sm border-b">操作</th></tr></thead>
@@ -226,7 +226,7 @@
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">代號*</label><input type="text" id="new-cust-code" class="w-full p-2 border rounded uppercase text-sm" /></div>
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">名稱*</label><input type="text" id="new-cust-name" class="w-full p-2 border rounded text-sm" /></div>
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">預設價格</label><select id="new-cust-price" class="w-full p-2 border rounded bg-white text-sm"><option value="p1">經銷(p1)</option><option value="p2">中盤(p2)</option><option value="p3">店頭(p3)</option><option value="p4">末端(p4)</option></select></div>
-                        <button id="btn-save-customer" class="col-span-1 bg-blue-600 text-white font-bold py-2 rounded text-sm h-[38px]">儲存資料</button>
+                        <button id="btn-save-customer" class="col-span-1 bg-blue-600 text-white font-bold py-2 rounded text-sm h-[38px]">上傳雲端</button>
                     </div>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -286,7 +286,7 @@
             
             <div class="p-2 md:p-4 flex-1 bg-black flex flex-col justify-center items-center relative overflow-hidden" style="min-height: 350px;">
                 <div id="reader" class="w-full max-w-[500px] h-full flex items-center justify-center text-white text-center">
-                    正在啟動相機，請稍候...
+                    <!-- HTML5 QRCode 渲染區 -->
                 </div>
             </div>
             
@@ -420,7 +420,6 @@
                 if (error.code === 'auth/configuration-not-found') {
                     // 若抓到沒開權限的錯誤，給予明確提示，且不會中斷系統 (單機模式繼續運作)
                     document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (尚未啟用 Firebase 匿名登入)';
-                    alert("【系統提示】\n您的 Firebase 尚未開啟匿名登入權限，目前系統將以「單機離線模式」運作。\n\n修復方式：\n請至 Firebase 控制台 -> Authentication (驗證) -> Sign-in method (登入方式) -> 啟用「匿名 (Anonymous)」，即可恢復跨平台雲端連線！");
                 } else {
                     document.getElementById('db-status').innerText = '⚠️ 單機離線模式 (網路或資料庫連線失敗)';
                 }
@@ -570,15 +569,17 @@
         }
 
         // ==========================================
-        //  軍規級相機模組 (強制後鏡頭、對焦與格式限制)
+        //  相機模組 (最高相容性設定，移除所有開場系統提示)
         // ==========================================
         const initScanner = () => {
             const scannerModal = document.getElementById('scanner-modal');
             const readerDiv = document.getElementById('reader');
             
             scannerModal.classList.remove('hidden');
-            readerDiv.innerHTML = '<div class="text-white text-center p-5 w-full">相機啟動中，請稍候...<br><span class="text-xs text-gray-400 mt-2 block">(若長時間無畫面，請確認瀏覽器相機權限已開啟)</span></div>';
             window.isScanningPaused = false;
+            
+            // 清空畫面確保 Html5Qrcode 不會因為既存 DOM 元素而出錯
+            readerDiv.innerHTML = '';
 
             setTimeout(() => {
                 if (!window.html5QrCode) {
@@ -586,10 +587,10 @@
                 }
                 
                 const config = {
-                    fps: 30, // 提升幀率至 30FPS，增快辨識速度
+                    fps: 15,
                     qrbox: function(viewfinderWidth, viewFinderHeight) {
                         let minEdge = Math.min(viewfinderWidth, viewFinderHeight);
-                        return { width: Math.floor(minEdge * 0.65), height: Math.floor(minEdge * 0.65) };
+                        return { width: Math.floor(minEdge * 0.7), height: Math.floor(minEdge * 0.7) };
                     },
                     aspectRatio: 1.0,
                     formatsToSupport: [
@@ -600,25 +601,19 @@
                     ]
                 };
 
-                const idealConstraints = {
-                    facingMode: "environment",
-                    width: { ideal: 1280 }, // 優化解析度為 720p，減輕手機 CPU 負擔以加速對焦
-                    height: { ideal: 720 },
-                    advanced: [{ focusMode: "continuous" }]
-                };
+                // 只請求後置鏡頭，不加上可能導致當機的嚴格畫質與對焦參數
+                const constraints = { facingMode: "environment" };
 
-                window.html5QrCode.start(idealConstraints, config, onScanSuccess, onScanFailure)
+                window.html5QrCode.start(constraints, config, onScanSuccess, onScanFailure)
                 .catch((err) => {
-                    console.warn("高畫質對焦模式失敗，降級使用基本模式...", err);
-                    window.html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+                    console.warn("後置鏡頭啟動失敗，嘗試備用模式...", err);
+                    
+                    // 降級模式：不強制指定鏡頭
+                    window.html5QrCode.start({ video: true }, config, onScanSuccess, onScanFailure)
                     .catch(err2 => {
-                        console.warn("基本後鏡頭模式失敗，搜尋硬體清單...", err2);
-                        Html5Qrcode.getCameras().then(devices => {
-                            if (devices && devices.length) {
-                                let cameraId = devices[devices.length - 1].id;
-                                window.html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure).catch(e => { alert("相機啟動完全失敗！\n" + e); window.closeScanner(); });
-                            } else { alert("找不到相機鏡頭！"); window.closeScanner(); }
-                        }).catch(e => { alert("無法取得相機權限！\n" + e); window.closeScanner(); });
+                        console.error("相機啟動完全失敗", err2);
+                        // 不使用彈窗，將錯誤溫和地顯示於畫面中
+                        readerDiv.innerHTML = '<div class="text-white text-center mt-10 p-4">⚠️ 無法啟動相機<br><span class="text-sm text-gray-400 mt-2 block">請確認瀏覽器已允許使用相機權限。<br>若仍無法開啟，請嘗試重新整理網頁。</span></div>';
                     });
                 });
             }, 300);
