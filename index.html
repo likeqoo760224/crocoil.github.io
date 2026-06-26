@@ -284,7 +284,6 @@
                 <button onclick="closeScanner()" class="text-gray-300 hover:text-white font-bold text-2xl px-2">&times;</button>
             </div>
             
-            <!-- 確保 reader 有足夠的高度讓庫能計算，避免 collapsed 導致黑屏 -->
             <div class="p-2 md:p-4 flex-1 bg-black flex flex-col justify-center items-center relative overflow-hidden" style="min-height: 350px;">
                 <div id="reader" class="w-full max-w-[500px] h-full flex items-center justify-center text-white text-center">
                     正在啟動相機，請稍候...
@@ -292,7 +291,7 @@
             </div>
             
             <div class="p-4 border-t border-gray-200 bg-white text-center shrink-0">
-                <p class="text-xs text-gray-500 mb-3">請允許相機權限，對準條碼即可自動辨識。</p>
+                <p class="text-xs text-gray-500 mb-3">若無法對焦，請將手機<strong class="text-red-500">稍微拉遠一點</strong>讓鏡頭適應。</p>
                 <button onclick="closeScanner()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 w-full rounded-lg transition-colors text-lg">取消並關閉</button>
             </div>
         </div>
@@ -361,16 +360,27 @@
         const iconTrash = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
         const iconEdit = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>`;
 
-        // 初始化
+        // ==========================================
+        //  初始化系統
+        // ==========================================
         function init() {
             try {
                 const savedProd = localStorage.getItem('erp_products_system_v4'); if (savedProd) products = JSON.parse(savedProd);
                 const savedHistory = localStorage.getItem('erp_saved_orders_v1'); if (savedHistory) savedOrders = JSON.parse(savedHistory);
                 const savedCust = localStorage.getItem('erp_customers_v1'); if (savedCust) customers = JSON.parse(savedCust);
             } catch (e) { console.error(e); }
+            
             updateDbStatus();
-            document.getElementById('invoice-no').value = settings.invoiceNo; document.getElementById('doc-date').value = settings.date; document.getElementById('filter-date').value = settings.date;
-            addNewRowData(); renderFullTable(); renderCustomerTable(); renderProductTable(); bindStaticEvents();
+            document.getElementById('invoice-no').value = settings.invoiceNo;
+            document.getElementById('doc-date').value = settings.date;
+            document.getElementById('filter-date').value = settings.date;
+
+            addNewRowData();
+            renderFullTable();
+            renderCustomerTable();
+            renderProductTable();
+            bindStaticEvents();
+            renderSummaryView(settings.date);
         }
 
         function updateDbStatus() {
@@ -380,7 +390,13 @@
         function incrementString(str) {
             if (!str) return '';
             const match = str.match(/^(.*?)(\d+)$/);
-            if (match) { const nextNum = (parseInt(match[2], 10) + 1).toString(); return match[1] + nextNum.padStart(match[2].length, '0'); }
+            if (match) {
+                const prefix = match[1];
+                const numStr = match[2];
+                const nextNum = (parseInt(numStr, 10) + 1).toString();
+                const paddedNum = nextNum.padStart(numStr.length, '0');
+                return prefix + paddedNum;
+            }
             return str;
         }
 
@@ -474,7 +490,7 @@
         }
 
         // ==========================================
-        //  軍規級相機模組 (強制後鏡頭、直接開啟不需 Start 按鈕)
+        //  軍規級相機模組 (強制後鏡頭、對焦與格式限制)
         // ==========================================
         const initScanner = () => {
             const scannerModal = document.getElementById('scanner-modal');
@@ -484,7 +500,6 @@
             readerDiv.innerHTML = '<div class="text-white text-center p-5 w-full">相機啟動中，請稍候...<br><span class="text-xs text-gray-400 mt-2 block">(若長時間無畫面，請確認瀏覽器相機權限已開啟)</span></div>';
             isScanningPaused = false;
 
-            // 確保 DOM 渲染完畢再呼叫相機
             setTimeout(() => {
                 if (!html5QrCode) {
                     html5QrCode = new Html5Qrcode("reader");
@@ -494,37 +509,36 @@
                     fps: 10,
                     qrbox: function(viewfinderWidth, viewFinderHeight) {
                         let minEdge = Math.min(viewfinderWidth, viewFinderHeight);
-                        return { width: Math.floor(minEdge * 0.75), height: Math.floor(minEdge * 0.75) };
+                        return { width: Math.floor(minEdge * 0.65), height: Math.floor(minEdge * 0.65) };
                     },
-                    aspectRatio: 1.0
+                    aspectRatio: 1.0,
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.UPC_A, Html5QrcodeSupportedFormats.UPC_E,
+                        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.QR_CODE
+                    ]
                 };
 
-                // 第一優先：直接請求系統環境鏡頭 (後鏡頭)
-                html5QrCode.start(
-                    { facingMode: "environment" },
-                    config,
-                    onScanSuccess,
-                    onScanFailure
-                ).catch((err) => {
-                    console.warn("直接啟動後鏡頭失敗，嘗試搜尋硬體設備清單...", err);
-                    
-                    // 備用方案：如果 facingMode 不被支援，直接抓取硬體清單
-                    Html5Qrcode.getCameras().then(devices => {
-                        if (devices && devices.length) {
-                            // 通常陣列的最後一個是實體的後鏡頭
-                            let cameraId = devices[devices.length - 1].id;
-                            html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure)
-                            .catch(e => {
-                                alert("相機啟動完全失敗！\n錯誤代碼：" + e);
-                                closeScanner();
-                            });
-                        } else {
-                            alert("在此設備上找不到任何相機鏡頭！");
-                            closeScanner();
-                        }
-                    }).catch(e => {
-                        alert("無法取得相機權限！請確認手機設定允許瀏覽器使用相機。\n" + e);
-                        closeScanner();
+                const idealConstraints = {
+                    facingMode: "environment",
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 },
+                    advanced: [{ focusMode: "continuous" }]
+                };
+
+                html5QrCode.start(idealConstraints, config, onScanSuccess, onScanFailure)
+                .catch((err) => {
+                    console.warn("高畫質對焦模式失敗，降級使用基本模式...", err);
+                    html5QrCode.start({ facingMode: "environment" }, config, onScanSuccess, onScanFailure)
+                    .catch(err2 => {
+                        console.warn("基本後鏡頭模式失敗，搜尋硬體清單...", err2);
+                        Html5Qrcode.getCameras().then(devices => {
+                            if (devices && devices.length) {
+                                let cameraId = devices[devices.length - 1].id;
+                                html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure).catch(e => { alert("相機啟動完全失敗！\n" + e); closeScanner(); });
+                            } else { alert("找不到相機鏡頭！"); closeScanner(); }
+                        }).catch(e => { alert("無法取得相機權限！\n" + e); closeScanner(); });
                     });
                 });
             }, 300);
@@ -536,68 +550,33 @@
         function onScanSuccess(decodedText, decodedResult) {
             if (isScanningPaused) return;
             isScanningPaused = true; 
-
-            // 震動回饋 (如果裝置支援)
             if ("vibrate" in navigator) navigator.vibrate(100);
 
             const product = products.find(p => p.barcode && p.barcode.toString() === decodedText.toString());
-            
             setTimeout(() => {
-                let confirmMsg = "";
-                if (product) {
-                    confirmMsg = `✅ 掃描成功！\n\n📌 條碼：${decodedText}\n📦 品名：${product.name}\n🔖 品號：${product.itemNo}\n💲 單價：$${product[settings.priceLevel] || 0}\n\n是否確認將此商品匯入表單？`;
-                } else {
-                    confirmMsg = `⚠️ 掃描成功，但查無此商品！\n\n📌 條碼：${decodedText}\n\n是否仍要將條碼填入表單空白列，由您手動建檔？`;
-                }
-
-                if (confirm(confirmMsg)) {
-                    processScannedBarcode(decodedText, product);
-                    closeScanner();
-                } else {
-                    // 按取消，隔 1 秒後恢復掃描
-                    setTimeout(() => { isScanningPaused = false; }, 1000);
-                }
+                let confirmMsg = product ? `✅ 掃描成功！\n\n📌 條碼：${decodedText}\n📦 品名：${product.name}\n🔖 品號：${product.itemNo}\n💲 單價：$${product[settings.priceLevel] || 0}\n\n是否匯入表單？` : `⚠️ 查無此商品！\n\n📌 條碼：${decodedText}\n\n是否仍要填入空白列手動建檔？`;
+                if (confirm(confirmMsg)) { processScannedBarcode(decodedText, product); closeScanner(); } 
+                else { setTimeout(() => { isScanningPaused = false; }, 1000); }
             }, 50);
         }
 
-        function onScanFailure(error) {
-            // 忽略掃不到條碼的持續報錯
-        }
+        function onScanFailure(error) { /* ignore */ }
 
         window.closeScanner = function() {
             document.getElementById('scanner-modal').classList.add('hidden');
             if (html5QrCode) {
-                try {
-                    html5QrCode.stop().then(() => {
-                        html5QrCode.clear();
-                        html5QrCode = null;
-                    }).catch(err => {
-                        html5QrCode.clear();
-                        html5QrCode = null;
-                    });
-                } catch(e) {
-                    html5QrCode = null;
-                }
+                try { html5QrCode.stop().then(() => { html5QrCode.clear(); html5QrCode = null; }).catch(err => { html5QrCode.clear(); html5QrCode = null; }); } 
+                catch(e) { html5QrCode = null; }
             }
         }
 
         function processScannedBarcode(barcode, product) {
-            let targetIdx = rows.length - 1; 
-            let lastRow = rows[targetIdx];
-            
-            if (lastRow.itemNo.trim() !== '' || lastRow.name.trim() !== '' || lastRow.barcode.trim() !== '') {
-                if(addNewRowData()) targetIdx = rows.length - 1;
-            }
-
+            let targetIdx = rows.length - 1; let lastRow = rows[targetIdx];
+            if (lastRow.itemNo.trim() !== '' || lastRow.name.trim() !== '' || lastRow.barcode.trim() !== '') { if(addNewRowData()) targetIdx = rows.length - 1; }
             if (product) {
-                rows[targetIdx].itemNo = product.itemNo; 
-                rows[targetIdx].name = product.name; 
-                rows[targetIdx].barcode = product.barcode;
-                rows[targetIdx].boxQty = product.boxQty; 
-                rows[targetIdx].price = product[settings.priceLevel] || 0;
-            } else {
-                rows[targetIdx].barcode = barcode;
-            }
+                rows[targetIdx].itemNo = product.itemNo; rows[targetIdx].name = product.name; rows[targetIdx].barcode = product.barcode;
+                rows[targetIdx].boxQty = product.boxQty; rows[targetIdx].price = product[settings.priceLevel] || 0;
+            } else { rows[targetIdx].barcode = barcode; }
             renderFullTable();
         }
 
@@ -613,7 +592,7 @@
                 html += `
                 <tr class="border-b border-gray-200 hover:bg-gray-100">
                     <td class="p-2 text-center text-gray-500">${idx + 1}</td>
-                    <td class="p-2 font-bold"><button onclick="exportHistoryOrder('${order.id}')" class="text-blue-600 hover:underline flex items-center gap-1">${order.customerName || '未命名'}</button></td>
+                    <td class="p-2 font-bold"><button onclick="exportHistoryOrder('${order.id}')" class="text-blue-600 hover:underline flex items-center gap-1">${order.customerCode ? `[${order.customerCode}] ` : ''}${order.customerName || '未命名'}</button></td>
                     <td class="p-2 text-center font-bold text-indigo-600">${order.invoiceNo || '-'}</td>
                     <td class="p-2 text-center"><button onclick="toggleDetails('${order.id}')" class="text-blue-600 bg-white border border-blue-200 px-2 py-1 rounded-full text-xs">${vItems}款 ▼</button></td>
                     <td class="p-2 text-right text-gray-600">$${order.subtotal.toLocaleString()}</td>
@@ -717,7 +696,6 @@
                 } catch(e) { alert("儲存失敗，空間不足。"); }
             });
 
-            // 匯入產品 CSV
             document.getElementById('file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = (event) => {
@@ -742,17 +720,11 @@
                             });
                         }
                     }
-
-                    if (newProducts.length > 0) {
-                        products = newProducts;
-                        try { localStorage.setItem('erp_products_system_v4', JSON.stringify(products)); updateDbStatus(); renderProductTable(); alert(`成功載入 ${products.length} 筆產品！`); } catch(err) {}
-                    } else { alert('無法解析檔案格式。'); }
+                    if (newProducts.length > 0) { products = newProducts; try { localStorage.setItem('erp_products_system_v4', JSON.stringify(products)); updateDbStatus(); renderProductTable(); alert(`成功載入 ${products.length} 筆產品！`); } catch(err) {} } else { alert('無法解析檔案格式。'); }
                     e.target.value = '';
-                };
-                reader.readAsText(file, 'utf-8'); 
+                }; reader.readAsText(file, 'utf-8'); 
             });
 
-            // 處理客戶檔案
             document.getElementById('cust-file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = (event) => {
@@ -853,6 +825,7 @@
             document.body.appendChild(link); link.click(); document.body.removeChild(link);
         }
 
+        // 啟動應用
         init();
     </script>
 </body>
