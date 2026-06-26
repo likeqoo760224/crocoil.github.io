@@ -24,10 +24,10 @@
         .tab-inactive:hover { background-color: #f8fafc; color: #475569; }
         
         /* 手機版掃描器 UI 優化 */
-        #reader { width: 100%; border-radius: 8px; overflow: hidden; border: none !important; }
+        #reader { width: 100%; min-height: 300px; border-radius: 8px; overflow: hidden; border: none !important; background-color: #1a1a1a; display: flex; align-items: center; justify-content: center; }
         #reader__dashboard_section_csr span { font-size: 14px; }
         #reader__dashboard_section_swaplink { margin-top: 10px; display: block; text-decoration: underline; color: #3b82f6; }
-        #reader video { object-fit: cover; border-radius: 8px; }
+        #reader video { object-fit: cover; border-radius: 8px; width: 100% !important; height: auto !important; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen p-2 md:p-6 relative">
@@ -283,12 +283,17 @@
                 <h3 class="font-bold text-lg flex items-center gap-2">📸 手機鏡頭掃描</h3>
                 <button onclick="closeScanner()" class="text-gray-300 hover:text-white font-bold text-2xl px-2">&times;</button>
             </div>
-            <div class="p-2 md:p-4 flex-1 bg-black flex flex-col justify-center items-center relative overflow-hidden">
-                <div id="reader" class="w-full max-w-[500px] h-full flex items-center justify-center"></div>
+            
+            <!-- 確保 reader 有足夠的高度讓庫能計算，避免 collapsed 導致黑屏 -->
+            <div class="p-2 md:p-4 flex-1 bg-black flex flex-col justify-center items-center relative overflow-hidden" style="min-height: 350px;">
+                <div id="reader" class="w-full max-w-[500px] h-full flex items-center justify-center text-white text-center">
+                    正在啟動相機，請稍候...
+                </div>
             </div>
+            
             <div class="p-4 border-t border-gray-200 bg-white text-center shrink-0">
-                <p class="text-xs text-gray-500 mb-3">請允許相機權限，對準條碼即可自動帶入表單。</p>
-                <button onclick="closeScanner()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 w-full rounded-lg transition-colors text-lg">關閉相機</button>
+                <p class="text-xs text-gray-500 mb-3">請允許相機權限，對準條碼即可自動辨識。</p>
+                <button onclick="closeScanner()" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 w-full rounded-lg transition-colors text-lg">取消並關閉</button>
             </div>
         </div>
     </div>
@@ -331,7 +336,8 @@
         let rows = [];
         let savedOrders = []; 
         let customers = []; 
-        let html5QrcodeScanner = null;
+        let html5QrCode = null; 
+        let isScanningPaused = false;
         
         let settings = {
             invoiceNo: localStorage.getItem('erp_latest_invoice') || '', 
@@ -468,59 +474,129 @@
         }
 
         // ==========================================
-        //  鏡頭掃描條碼邏輯 (HTML5-QRCode 行動版優化)
+        //  軍規級相機模組 (強制後鏡頭、直接開啟不需 Start 按鈕)
         // ==========================================
         const initScanner = () => {
-            document.getElementById('scanner-modal').classList.remove('hidden');
-            if(!html5QrcodeScanner) {
-                // 優化相機參數，針對手機調用後置鏡頭並讓掃描框響應式
-                html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-                    fps: 10, 
+            const scannerModal = document.getElementById('scanner-modal');
+            const readerDiv = document.getElementById('reader');
+            
+            scannerModal.classList.remove('hidden');
+            readerDiv.innerHTML = '<div class="text-white text-center p-5 w-full">相機啟動中，請稍候...<br><span class="text-xs text-gray-400 mt-2 block">(若長時間無畫面，請確認瀏覽器相機權限已開啟)</span></div>';
+            isScanningPaused = false;
+
+            // 確保 DOM 渲染完畢再呼叫相機
+            setTimeout(() => {
+                if (!html5QrCode) {
+                    html5QrCode = new Html5Qrcode("reader");
+                }
+                
+                const config = {
+                    fps: 10,
                     qrbox: function(viewfinderWidth, viewFinderHeight) {
                         let minEdge = Math.min(viewfinderWidth, viewFinderHeight);
-                        let size = Math.floor(minEdge * 0.7); // 掃描框為螢幕短邊的 70%
-                        return { width: size, height: size };
+                        return { width: Math.floor(minEdge * 0.75), height: Math.floor(minEdge * 0.75) };
                     },
-                    videoConstraints: { facingMode: "environment" } // 強制優先使用後置鏡頭
-                }, false);
-            }
-            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+                    aspectRatio: 1.0
+                };
+
+                // 第一優先：直接請求系統環境鏡頭 (後鏡頭)
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    onScanSuccess,
+                    onScanFailure
+                ).catch((err) => {
+                    console.warn("直接啟動後鏡頭失敗，嘗試搜尋硬體設備清單...", err);
+                    
+                    // 備用方案：如果 facingMode 不被支援，直接抓取硬體清單
+                    Html5Qrcode.getCameras().then(devices => {
+                        if (devices && devices.length) {
+                            // 通常陣列的最後一個是實體的後鏡頭
+                            let cameraId = devices[devices.length - 1].id;
+                            html5QrCode.start(cameraId, config, onScanSuccess, onScanFailure)
+                            .catch(e => {
+                                alert("相機啟動完全失敗！\n錯誤代碼：" + e);
+                                closeScanner();
+                            });
+                        } else {
+                            alert("在此設備上找不到任何相機鏡頭！");
+                            closeScanner();
+                        }
+                    }).catch(e => {
+                        alert("無法取得相機權限！請確認手機設定允許瀏覽器使用相機。\n" + e);
+                        closeScanner();
+                    });
+                });
+            }, 300);
         };
 
         document.getElementById('btn-open-scanner').addEventListener('click', initScanner);
         document.getElementById('btn-open-scanner-mobile').addEventListener('click', initScanner);
 
         function onScanSuccess(decodedText, decodedResult) {
-            html5QrcodeScanner.pause();
-            // 延遲一點時間避免畫面卡死
+            if (isScanningPaused) return;
+            isScanningPaused = true; 
+
+            // 震動回饋 (如果裝置支援)
+            if ("vibrate" in navigator) navigator.vibrate(100);
+
+            const product = products.find(p => p.barcode && p.barcode.toString() === decodedText.toString());
+            
             setTimeout(() => {
-                if(confirm(`成功掃描條碼：${decodedText}\n\n是否將此商品加入表單？`)) {
-                    processScannedBarcode(decodedText);
+                let confirmMsg = "";
+                if (product) {
+                    confirmMsg = `✅ 掃描成功！\n\n📌 條碼：${decodedText}\n📦 品名：${product.name}\n🔖 品號：${product.itemNo}\n💲 單價：$${product[settings.priceLevel] || 0}\n\n是否確認將此商品匯入表單？`;
+                } else {
+                    confirmMsg = `⚠️ 掃描成功，但查無此商品！\n\n📌 條碼：${decodedText}\n\n是否仍要將條碼填入表單空白列，由您手動建檔？`;
+                }
+
+                if (confirm(confirmMsg)) {
+                    processScannedBarcode(decodedText, product);
                     closeScanner();
                 } else {
-                    html5QrcodeScanner.resume();
+                    // 按取消，隔 1 秒後恢復掃描
+                    setTimeout(() => { isScanningPaused = false; }, 1000);
                 }
-            }, 300);
+            }, 50);
         }
 
-        function onScanFailure(error) {}
+        function onScanFailure(error) {
+            // 忽略掃不到條碼的持續報錯
+        }
 
         window.closeScanner = function() {
             document.getElementById('scanner-modal').classList.add('hidden');
-            if (html5QrcodeScanner) { html5QrcodeScanner.clear(); html5QrcodeScanner = null; }
+            if (html5QrCode) {
+                try {
+                    html5QrCode.stop().then(() => {
+                        html5QrCode.clear();
+                        html5QrCode = null;
+                    }).catch(err => {
+                        html5QrCode.clear();
+                        html5QrCode = null;
+                    });
+                } catch(e) {
+                    html5QrCode = null;
+                }
+            }
         }
 
-        function processScannedBarcode(barcode) {
-            const product = products.find(p => p.barcode && p.barcode.toString() === barcode.toString());
-            let targetIdx = rows.length - 1; let lastRow = rows[targetIdx];
+        function processScannedBarcode(barcode, product) {
+            let targetIdx = rows.length - 1; 
+            let lastRow = rows[targetIdx];
+            
             if (lastRow.itemNo.trim() !== '' || lastRow.name.trim() !== '' || lastRow.barcode.trim() !== '') {
                 if(addNewRowData()) targetIdx = rows.length - 1;
             }
+
             if (product) {
-                rows[targetIdx].itemNo = product.itemNo; rows[targetIdx].name = product.name; rows[targetIdx].barcode = product.barcode;
-                rows[targetIdx].boxQty = product.boxQty; rows[targetIdx].price = product[settings.priceLevel] || 0;
+                rows[targetIdx].itemNo = product.itemNo; 
+                rows[targetIdx].name = product.name; 
+                rows[targetIdx].barcode = product.barcode;
+                rows[targetIdx].boxQty = product.boxQty; 
+                rows[targetIdx].price = product[settings.priceLevel] || 0;
             } else {
-                if(confirm('查無此條碼商品！\n是否仍要將條碼填入列中手動建檔？')) rows[targetIdx].barcode = barcode;
+                rows[targetIdx].barcode = barcode;
             }
             renderFullTable();
         }
