@@ -821,32 +821,44 @@
                 } catch(e) { alert("儲存發生錯誤。"); console.error(e); }
             });
 
-            // 批次匯入產品 (自動濾除 BOM 與引號，模糊對應標題)
+            // 批次匯入產品 (自動解決 Big5/UTF-8 亂碼與 Excel 隱形引號)
             document.getElementById('file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
-                    const lines = event.target.result.split(/\r?\n/); let newProducts = []; let headerFound = false; let headerIdx = {};
+                    const buffer = event.target.result;
+                    // 自動判斷並修正台灣常見的 Excel Big5 亂碼問題
+                    let text = new TextDecoder('utf-8').decode(buffer);
+                    if (text.includes('')) text = new TextDecoder('big5').decode(buffer);
+                    
+                    const lines = text.split(/\r?\n/); let newProducts = []; let headerFound = false; let headerIdx = {};
 
                     for (let i = 0; i < lines.length; i++) {
-                        // 以正則表達式清除 Excel 存檔時產生的隱形 BOM (\uFEFF) 與雙引號，並去除前後空白
-                        const cols = lines[i].split(/,|\t/).map(col => col.replace(/^["\uFEFF]+|["]+$/g, '').trim());
+                        if(!lines[i].trim()) continue; // 跳過空白行
+                        
+                        // 清洗資料：去除 BOM、移除 Excel 的 ="..." 格式、移除標準雙引號
+                        const cols = lines[i].split(/,|\t/).map(col => {
+                            let c = col.trim().replace(/^\uFEFF/, '');
+                            if (c.startsWith('="') && c.endsWith('"')) c = c.substring(2, c.length - 1);
+                            else if (c.startsWith('"') && c.endsWith('"')) c = c.substring(1, c.length - 1);
+                            return c.trim();
+                        });
                         
                         if (!headerFound) {
-                            // 模糊搜尋標題位置
-                            const itemNoIdx = cols.findIndex(c => c.includes('品號'));
-                            const nameIdx = cols.findIndex(c => c.includes('品名'));
+                            // 極度寬鬆的模糊標題搜尋
+                            const itemNoIdx = cols.findIndex(c => c.includes('品號') || c.includes('貨號') || c.includes('料號') || c.includes('產品編號'));
+                            const nameIdx = cols.findIndex(c => c.includes('品名') || c.includes('商品名稱') || c.includes('產品名稱'));
                             
                             if (itemNoIdx !== -1 && nameIdx !== -1) {
                                 headerFound = true;
                                 headerIdx = {
                                     itemNo: itemNoIdx,
                                     name: nameIdx,
-                                    boxQty: cols.findIndex(c => c.includes('箱入數')),
+                                    boxQty: cols.findIndex(c => c.includes('箱入') || c.includes('入數') || c.includes('包裝')),
                                     barcode: cols.findIndex(c => c.includes('條碼')),
-                                    p1: cols.findIndex(c => c.includes('經銷')),
-                                    p2: cols.findIndex(c => c.includes('中盤')),
-                                    p3: cols.findIndex(c => c.includes('店頭')),
-                                    p4: cols.findIndex(c => c.includes('末端')),
+                                    p1: cols.findIndex(c => c.includes('經銷') || c.includes('P1')),
+                                    p2: cols.findIndex(c => c.includes('中盤') || c.includes('P2')),
+                                    p3: cols.findIndex(c => c.includes('店頭') || c.includes('P3')),
+                                    p4: cols.findIndex(c => c.includes('末端') || c.includes('P4')),
                                 };
                             }
                             continue;
@@ -882,20 +894,31 @@
                         }
                     } else { alert('無法解析檔案格式。請確保檔案含有「品號」與「品名」標題。'); }
                     e.target.value = '';
-                }; reader.readAsText(file, 'utf-8'); 
+                }; reader.readAsArrayBuffer(file); 
             });
 
-            // 批次匯入客戶 (自動濾除 BOM 與引號，模糊對應標題)
+            // 批次匯入客戶 (自動解決 Big5/UTF-8 亂碼與 Excel 隱形引號)
             document.getElementById('cust-file-upload').addEventListener('change', (e) => {
                 const file = e.target.files[0]; if (!file) return; const reader = new FileReader();
                 reader.onload = async (event) => {
-                    const lines = event.target.result.split(/\r?\n/); let newCustomers = []; let headerFound = false; let headerIdx = {};
+                    const buffer = event.target.result;
+                    let text = new TextDecoder('utf-8').decode(buffer);
+                    if (text.includes('')) text = new TextDecoder('big5').decode(buffer);
+
+                    const lines = text.split(/\r?\n/); let newCustomers = []; let headerFound = false; let headerIdx = {};
                     
                     for (let i = 0; i < lines.length; i++) {
-                        const cols = lines[i].split(/,|\t/).map(col => col.replace(/^["\uFEFF]+|["]+$/g, '').trim());
+                        if(!lines[i].trim()) continue;
+
+                        const cols = lines[i].split(/,|\t/).map(col => {
+                            let c = col.trim().replace(/^\uFEFF/, '');
+                            if (c.startsWith('="') && c.endsWith('"')) c = c.substring(2, c.length - 1);
+                            else if (c.startsWith('"') && c.endsWith('"')) c = c.substring(1, c.length - 1);
+                            return c.trim();
+                        });
                         
                         if (!headerFound) {
-                            const codeIdx = cols.findIndex(c => c.includes('代號') || c.includes('編號')); 
+                            const codeIdx = cols.findIndex(c => c.includes('代號') || c.includes('編號') || c.includes('客編')); 
                             const nameIdx = cols.findIndex(c => c.includes('名稱') || c.includes('簡稱') || c.includes('客戶')); 
                             const priceIdx = cols.findIndex(c => c.includes('價格') || c.includes('等級') || c.includes('售價'));
                             if (codeIdx !== -1 && nameIdx !== -1) { 
@@ -909,9 +932,9 @@
                             let pLevel = 'p1';
                             if (headerIdx.price !== -1 && cols[headerIdx.price]) { 
                                 const pStr = cols[headerIdx.price].toLowerCase(); 
-                                if (pStr.includes('中盤') || pStr.includes('p2')) pLevel = 'p2'; 
-                                else if (pStr.includes('店頭') || pStr.includes('p3')) pLevel = 'p3'; 
-                                else if (pStr.includes('末端') || pStr.includes('p4')) pLevel = 'p4'; 
+                                if (pStr.includes('中盤') || pStr.includes('p2') || pStr.includes('2')) pLevel = 'p2'; 
+                                else if (pStr.includes('店頭') || pStr.includes('p3') || pStr.includes('3')) pLevel = 'p3'; 
+                                else if (pStr.includes('末端') || pStr.includes('p4') || pStr.includes('4')) pLevel = 'p4'; 
                             }
                             newCustomers.push({ code: cols[headerIdx.code].toUpperCase(), name: cols[headerIdx.name], priceLevel: pLevel });
                         }
@@ -937,7 +960,7 @@
                         }
                     } else { alert('無法解析檔案。請確保檔案含有「代號」與「名稱」標題。'); }
                     e.target.value = '';
-                }; reader.readAsText(file, 'utf-8'); 
+                }; reader.readAsArrayBuffer(file); 
             });
 
             document.getElementById('btn-save-customer').addEventListener('click', async () => {
