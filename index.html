@@ -350,10 +350,9 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        // Firebase 資料庫路徑規範
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'crocoil-system-app';
-        const getColRef = (colName) => collection(db, 'artifacts', appId, 'public', 'data', colName);
-        const getDocRef = (colName, docId) => doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+        // Firebase 資料庫路徑規範 (修改為直接讀取根目錄，對齊您上傳的路徑)
+        const getColRef = (colName) => collection(db, colName);
+        const getDocRef = (colName, docId) => doc(db, colName, docId);
 
         let currentUser = null;
 
