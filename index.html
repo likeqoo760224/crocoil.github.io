@@ -506,7 +506,7 @@
                 }
                 
                 const config = {
-                    fps: 10,
+                    fps: 30, // 提升幀率至 30FPS，增快辨識速度
                     qrbox: function(viewfinderWidth, viewFinderHeight) {
                         let minEdge = Math.min(viewfinderWidth, viewFinderHeight);
                         return { width: Math.floor(minEdge * 0.65), height: Math.floor(minEdge * 0.65) };
@@ -522,8 +522,8 @@
 
                 const idealConstraints = {
                     facingMode: "environment",
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
+                    width: { ideal: 1280 }, // 優化解析度為 720p，減輕手機 CPU 負擔以加速對焦
+                    height: { ideal: 720 },
                     advanced: [{ focusMode: "continuous" }]
                 };
 
