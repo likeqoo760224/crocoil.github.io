@@ -54,7 +54,7 @@
                     <button id="btn-login" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded transition-colors text-lg shadow-md">登入系統</button>
                     <button id="btn-register" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded transition-colors text-lg shadow-md">註冊新帳號</button>
                 </div>
-                <div id="auth-error" class="text-red-500 text-sm text-center font-bold hidden mt-3"></div>
+                <div id="auth-error" class="text-red-500 text-sm text-center font-bold hidden mt-3 bg-red-50 p-2 rounded"></div>
             </div>
         </div>
     </div>
@@ -493,7 +493,13 @@
                 await signInWithEmailAndPassword(auth, email, password);
             } catch(e) {
                 document.getElementById('btn-login').innerText = '登入系統';
-                errDiv.innerText = '登入失敗：' + e.message;
+                let msg = '登入失敗，請稍後再試。';
+                if (e.code === 'auth/invalid-credential' || e.code === 'auth/user-not-found' || e.code === 'auth/wrong-password') {
+                    msg = '登入失敗：帳號或密碼錯誤！\n(無帳號密碼無法登入)';
+                } else if (e.code === 'auth/invalid-email') {
+                    msg = '登入失敗：信箱格式不正確！';
+                }
+                errDiv.innerText = msg;
                 errDiv.classList.remove('hidden');
             }
         });
@@ -516,7 +522,15 @@
                 alert('註冊成功！系統將為您建立專屬的隔離雲端空間。');
             } catch(e) {
                 document.getElementById('btn-register').innerText = '註冊新帳號';
-                errDiv.innerText = '註冊失敗：' + e.message;
+                let msg = '註冊失敗：' + e.message;
+                if (e.code === 'auth/email-already-in-use') {
+                    msg = '註冊失敗：這個信箱已經被註冊過了！一個信箱只能註冊一次。';
+                } else if (e.code === 'auth/weak-password') {
+                    msg = '註冊失敗：密碼長度太短，請至少設定 6 個字元！';
+                } else if (e.code === 'auth/invalid-email') {
+                    msg = '註冊失敗：信箱格式不正確！';
+                }
+                errDiv.innerText = msg;
                 errDiv.classList.remove('hidden');
             }
         });
