@@ -1,3 +1,15 @@
+沒問題！我已經為您將全系統的 **P1 ~ P13 類別名稱**進行了統一與同步。
+
+這次修改的範圍涵蓋了整個系統，包含：
+
+1. **訂單頁面 / 新增客戶頁面**的「預設價格」下拉選單。
+2. **產品查詢頁面**的「表格標題」，現在會顯示如 `P4(零售)`、`P6(賣場)`、`P12(超商)` 等對應簡稱。
+3. **新增/編輯產品的彈出視窗**，輸入框上方的標籤已全部更新為您指定的全名。
+4. **CSV 批次匯入解析引擎**（非常重要！）：現在不管您的 Excel 表頭是打「P6」還是「大賣場」，打「P12」還是「便利商店」，系統都能精準辨識並自動分類到對應的 P 等級中。
+
+請完整複製下方的程式碼，覆蓋您的 `index.html` 檔案：
+
+```html:進階報價與訂單建立系統(類別更新版):index.html
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -127,10 +139,19 @@
                     <div class="space-y-1">
                         <label class="block text-xs md:text-sm font-bold text-gray-700">預設價格</label>
                         <select id="price-level" class="w-full p-2 border border-gray-300 rounded shadow-sm bg-white text-sm">
-                            <option value="p1">經銷價</option>
-                            <option value="p2">中盤價</option>
-                            <option value="p3">店頭價</option>
-                            <option value="p4">末端價</option>
+                            <option value="p1">P1 (經銷商)</option>
+                            <option value="p2">P2 (盤商)</option>
+                            <option value="p3">P3 (店頭價)</option>
+                            <option value="p4">P4 (零售價)</option>
+                            <option value="p5">P5 (連鎖百貨)</option>
+                            <option value="p6">P6 (大賣場)</option>
+                            <option value="p7">P7 (政府機關)</option>
+                            <option value="p8">P8 (代送商)</option>
+                            <option value="p9">P9 (其他)</option>
+                            <option value="p10">P10 (電商)</option>
+                            <option value="p11">P11 (異業合作)</option>
+                            <option value="p12">P12 (便利商店)</option>
+                            <option value="p13">P13 (藥妝)</option>
                         </select>
                     </div>
                 </div>
@@ -258,7 +279,24 @@
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 items-end">
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">代號*</label><input type="text" id="new-cust-code" class="w-full p-2 border rounded uppercase text-sm" /></div>
                         <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">名稱*</label><input type="text" id="new-cust-name" class="w-full p-2 border rounded text-sm" /></div>
-                        <div class="col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">預設價格</label><select id="new-cust-price" class="w-full p-2 border rounded bg-white text-sm"><option value="p1">經銷(p1)</option><option value="p2">中盤(p2)</option><option value="p3">店頭(p3)</option><option value="p4">末端(p4)</option></select></div>
+                        <div class="col-span-1">
+                            <label class="block text-xs font-bold text-gray-700 mb-1">預設價格</label>
+                            <select id="new-cust-price" class="w-full p-2 border rounded bg-white text-sm">
+                                <option value="p1">P1 (經銷商)</option>
+                                <option value="p2">P2 (盤商)</option>
+                                <option value="p3">P3 (店頭價)</option>
+                                <option value="p4">P4 (零售價)</option>
+                                <option value="p5">P5 (連鎖百貨)</option>
+                                <option value="p6">P6 (大賣場)</option>
+                                <option value="p7">P7 (政府機關)</option>
+                                <option value="p8">P8 (代送商)</option>
+                                <option value="p9">P9 (其他)</option>
+                                <option value="p10">P10 (電商)</option>
+                                <option value="p11">P11 (異業合作)</option>
+                                <option value="p12">P12 (便利商店)</option>
+                                <option value="p13">P13 (藥妝)</option>
+                            </select>
+                        </div>
                         <button id="btn-save-customer" class="col-span-1 bg-blue-600 text-white font-bold py-2 rounded text-sm h-[38px]">上傳雲端</button>
                     </div>
                 </div>
@@ -283,18 +321,27 @@
                 </button>
             </div>
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-y-auto max-h-[600px] overflow-x-auto">
-                <table class="w-full text-left min-w-[800px] relative text-sm md:text-base">
+                <table class="w-full text-left min-w-[1600px] relative text-sm md:text-base">
                     <thead class="bg-gray-100 border-b border-gray-200 sticky top-0 z-10">
                         <tr>
                             <th class="p-2 font-bold text-gray-700 w-24">品號</th>
                             <th class="p-2 font-bold text-gray-700 w-32">條碼</th>
-                            <th class="p-2 font-bold text-gray-700">品名</th>
+                            <th class="p-2 font-bold text-gray-700 min-w-[150px]">品名</th>
                             <th class="p-2 font-bold text-gray-700 w-12 text-center">箱入</th>
-                            <th class="p-2 font-bold text-gray-700 text-right">經銷</th>
-                            <th class="p-2 font-bold text-gray-700 text-right">中盤</th>
-                            <th class="p-2 font-bold text-gray-700 text-right">店頭</th>
-                            <th class="p-2 font-bold text-gray-700 text-right">末端</th>
-                            <th class="p-2 font-bold text-gray-700 text-center w-20">編輯</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P1(經銷)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P2(盤商)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P3(店頭)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P4(零售)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P5(連鎖)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P6(賣場)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P7(機關)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P8(代送)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P9(其他)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P10(電商)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P11(異業)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P12(超商)</th>
+                            <th class="p-2 font-bold text-gray-700 text-right">P13(藥妝)</th>
+                            <th class="p-2 font-bold text-gray-700 text-center w-16">編輯</th>
                         </tr>
                     </thead>
                     <tbody id="product-table-body">
@@ -331,30 +378,41 @@
     </div>
 
     <!-- ==========================================
-         彈出視窗：新增/編輯產品 Modal
+         彈出視窗：新增/編輯產品 Modal (擴展至 P13)
          ========================================== -->
-    <div id="product-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex flex-col justify-center items-center p-4">
-        <div class="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col overflow-hidden">
-            <div class="bg-indigo-600 p-4 flex justify-between items-center text-white">
+    <div id="product-modal" class="fixed inset-0 bg-black/60 z-[60] hidden flex flex-col justify-center items-center p-2 md:p-4">
+        <div class="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[95vh]">
+            <div class="bg-indigo-600 p-4 flex justify-between items-center text-white shrink-0">
                 <h3 id="prod-modal-title" class="font-bold text-lg">新增/編輯商品</h3>
                 <button onclick="closeProductModal()" class="text-indigo-200 hover:text-white font-bold text-xl px-2">&times;</button>
             </div>
-            <div class="p-4 md:p-5 space-y-3">
+            <div class="p-4 md:p-5 overflow-y-auto space-y-3 flex-1">
                 <input type="hidden" id="pm-idx" value="-1" />
-                <div class="flex gap-3">
-                    <div class="flex-1"><label class="block text-xs font-bold text-gray-700 mb-1">品號 *</label><input type="text" id="pm-no" class="w-full p-2 border rounded uppercase outline-none" /></div>
-                    <div class="flex-1"><label class="block text-xs font-bold text-gray-700 mb-1">條碼</label><input type="text" id="pm-bar" class="w-full p-2 border rounded outline-none" /></div>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">品號 *</label><input type="text" id="pm-no" class="w-full p-2 border rounded uppercase outline-none" /></div>
+                    <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">條碼</label><input type="text" id="pm-bar" class="w-full p-2 border rounded outline-none" /></div>
+                    <div class="col-span-2"><label class="block text-xs font-bold text-gray-700 mb-1">品名 *</label><input type="text" id="pm-name" class="w-full p-2 border rounded outline-none" /></div>
+                    <div class="col-span-2 md:col-span-1"><label class="block text-xs font-bold text-gray-700 mb-1">箱入數</label><input type="number" id="pm-box" value="1" class="w-full p-2 border rounded outline-none" /></div>
                 </div>
-                <div><label class="block text-xs font-bold text-gray-700 mb-1">品名 *</label><input type="text" id="pm-name" class="w-full p-2 border rounded outline-none" /></div>
-                <div><label class="block text-xs font-bold text-gray-700 mb-1">箱入數</label><input type="number" id="pm-box" value="1" class="w-full p-2 border rounded outline-none" /></div>
-                <div class="grid grid-cols-2 gap-3 bg-gray-50 p-3 rounded border">
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">經銷價(p1)</label><input type="number" id="pm-p1" class="w-full p-1.5 border rounded text-right" /></div>
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">中盤價(p2)</label><input type="number" id="pm-p2" class="w-full p-1.5 border rounded text-right" /></div>
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">店頭價(p3)</label><input type="number" id="pm-p3" class="w-full p-1.5 border rounded text-right" /></div>
-                    <div><label class="block text-xs font-bold text-gray-500 mb-1">末端價(p4)</label><input type="number" id="pm-p4" class="w-full p-1.5 border rounded text-right" /></div>
+                
+                <h4 class="font-bold text-sm text-indigo-700 border-b pb-1 mt-4 mb-2">價格等級設定 (P1 ~ P13)</h4>
+                <div class="grid grid-cols-3 md:grid-cols-4 gap-2 bg-gray-50 p-3 rounded border">
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P1 (經銷商)</label><input type="number" id="pm-p1" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P2 (盤商)</label><input type="number" id="pm-p2" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P3 (店頭價)</label><input type="number" id="pm-p3" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P4 (零售價)</label><input type="number" id="pm-p4" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P5 (連鎖百貨)</label><input type="number" id="pm-p5" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P6 (大賣場)</label><input type="number" id="pm-p6" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P7 (政府機關)</label><input type="number" id="pm-p7" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P8 (代送商)</label><input type="number" id="pm-p8" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P9 (其他)</label><input type="number" id="pm-p9" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P10 (電商)</label><input type="number" id="pm-p10" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P11 (異業合作)</label><input type="number" id="pm-p11" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P12 (便利商店)</label><input type="number" id="pm-p12" class="w-full p-1.5 border rounded text-right" /></div>
+                    <div><label class="block text-xs font-bold text-gray-500 mb-1">P13 (藥妝)</label><input type="number" id="pm-p13" class="w-full p-1.5 border rounded text-right" /></div>
                 </div>
             </div>
-            <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3">
+            <div class="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3 shrink-0">
                 <button onclick="closeProductModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded font-medium">取消</button>
                 <button onclick="saveProductModal()" class="px-4 py-2 bg-indigo-600 text-white rounded font-medium">儲存設定</button>
             </div>
@@ -384,11 +442,8 @@
         const db = getFirestore(app);
 
         // Firebase 資料庫路徑規範
-        // 1. 公用空間 (產品、客戶)：讀取根目錄 collection
         const getPublicColRef = (colName) => collection(db, colName);
         const getPublicDocRef = (colName, docId) => doc(db, colName, docId);
-        
-        // 2. 個人獨立空間 (訂單)：隔離在 user/{uid}/orders 底下
         const getPrivateColRef = (colName, uid) => collection(db, 'users', uid, colName);
         const getPrivateDocRef = (colName, docId, uid) => doc(db, 'users', uid, colName, docId);
 
@@ -431,29 +486,24 @@
         //  認證系統與初始化
         // ==========================================
         function init() {
-            // 準備 DOM 狀態
             document.getElementById('invoice-no').value = settings.invoiceNo;
             document.getElementById('doc-date').value = settings.date;
             document.getElementById('filter-date').value = settings.date;
             
             bindStaticEvents();
 
-            // 監聽登入狀態改變
             onAuthStateChanged(auth, (user) => {
                 const overlay = document.getElementById('auth-overlay');
                 const mainApp = document.getElementById('main-app');
                 
                 if (user) {
-                    // 已登入
                     currentUser = user;
                     overlay.classList.add('hidden');
                     mainApp.classList.remove('hidden');
                     
-                    // 顯示帳號名稱
                     const emailName = user.email.split('@')[0];
                     document.getElementById('current-user-email').innerText = emailName;
                     
-                    // 載入該使用者的本機快取資料
                     loadLocalData(user.uid);
                     
                     addNewRowData();
@@ -462,10 +512,8 @@
                     renderProductTable();
                     renderSummaryView(settings.date);
 
-                    // 啟動即時同步
                     setupRealtimeListeners();
                 } else {
-                    // 未登入
                     currentUser = null;
                     cleanupListeners();
                     overlay.classList.remove('hidden');
@@ -476,7 +524,6 @@
             });
         }
 
-        // 登入事件
         document.getElementById('btn-login').addEventListener('click', async () => {
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
@@ -504,7 +551,6 @@
             }
         });
 
-        // 註冊事件
         document.getElementById('btn-register').addEventListener('click', async () => {
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
@@ -535,7 +581,6 @@
             }
         });
 
-        // 登出事件
         document.getElementById('btn-logout').addEventListener('click', async () => {
             if(confirm('確定要登出目前的帳號嗎？')) {
                 await signOut(auth);
@@ -550,7 +595,6 @@
                 const savedCust = localStorage.getItem('erp_customers_v1'); 
                 if (savedCust) window.customers = JSON.parse(savedCust);
                 
-                // 訂單使用含有 uid 的專屬金鑰，避免同一台電腦帳號切換時看到別人的快取
                 const savedHistory = localStorage.getItem('erp_saved_orders_' + uid); 
                 if (savedHistory) window.savedOrders = JSON.parse(savedHistory);
             } catch (e) { console.error("本機資料讀取失敗", e); }
@@ -560,7 +604,6 @@
             if (!currentUser) return;
             document.getElementById('db-status').innerText = '☁️ 正在同步雲端資料...';
             
-            // 監聽公用產品庫
             unsubProducts = onSnapshot(getPublicColRef('products'), (snapshot) => {
                 window.products = snapshot.docs.map(doc => doc.data());
                 localStorage.setItem('erp_products_system_v4', JSON.stringify(window.products));
@@ -568,7 +611,6 @@
                 renderProductTable(document.getElementById('prod-search').value);
             }, (error) => console.error(error));
 
-            // 監聽公用客戶庫
             unsubCustomers = onSnapshot(getPublicColRef('customers'), (snapshot) => {
                 window.customers = snapshot.docs.map(doc => doc.data());
                 localStorage.setItem('erp_customers_v1', JSON.stringify(window.customers));
@@ -576,7 +618,6 @@
                 renderCustomerTable();
             }, (error) => console.error(error));
 
-            // 監聽個人專屬訂單庫 (安全隔離)
             unsubOrders = onSnapshot(getPrivateColRef('orders', currentUser.uid), (snapshot) => {
                 const data = snapshot.docs.map(doc => doc.data());
                 window.savedOrders = data.sort((a,b) => b.id.localeCompare(a.id));
@@ -846,7 +887,26 @@
             if(searchTerm.trim() !== '') { const term = searchTerm.toLowerCase(); filtered = window.products.filter(p => p.itemNo.toLowerCase().includes(term) || p.name.toLowerCase().includes(term) || (p.barcode && p.barcode.toString().includes(term))); }
             filtered.forEach((p, idx) => {
                 const realIdx = window.products.indexOf(p);
-                html += `<tr class="border-b border-gray-100 hover:bg-slate-50"><td class="p-2 font-semibold text-indigo-700">${p.itemNo}</td><td class="p-2 text-gray-600">${p.barcode || '-'}</td><td class="p-2 text-gray-800">${p.name}</td><td class="p-2 text-center text-gray-500">${p.boxQty || 1}</td><td class="p-2 text-right text-gray-700">$${p.p1 || 0}</td><td class="p-2 text-right text-gray-700">$${p.p2 || 0}</td><td class="p-2 text-right text-gray-700">$${p.p3 || 0}</td><td class="p-2 text-right text-gray-700">$${p.p4 || 0}</td><td class="p-2 text-center"><button onclick="editProduct(${realIdx})" class="text-blue-500 p-1 rounded">${iconEdit}</button><button onclick="deleteProduct(${realIdx})" class="text-red-500 p-1 rounded ml-1">${iconTrash}</button></td></tr>`;
+                html += `<tr class="border-b border-gray-100 hover:bg-slate-50">
+                    <td class="p-2 font-semibold text-indigo-700">${p.itemNo}</td>
+                    <td class="p-2 text-gray-600">${p.barcode || '-'}</td>
+                    <td class="p-2 text-gray-800">${p.name}</td>
+                    <td class="p-2 text-center text-gray-500">${p.boxQty || 1}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p1 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p2 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p3 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p4 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p5 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p6 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p7 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p8 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p9 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p10 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p11 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p12 || 0}</td>
+                    <td class="p-2 text-right text-gray-700">$${p.p13 || 0}</td>
+                    <td class="p-2 text-center"><button onclick="editProduct(${realIdx})" class="text-blue-500 p-1 rounded">${iconEdit}</button><button onclick="deleteProduct(${realIdx})" class="text-red-500 p-1 rounded ml-1">${iconTrash}</button></td>
+                </tr>`;
             });
             prodTbody.innerHTML = html; filtered.length === 0 ? document.getElementById('no-product-msg').classList.remove('hidden') : document.getElementById('no-product-msg').classList.add('hidden');
         }
@@ -855,7 +915,7 @@
 
         document.getElementById('btn-add-product-modal').addEventListener('click', () => {
             document.getElementById('prod-modal-title').innerText = '新增商品'; document.getElementById('pm-idx').value = '-1';
-            ['pm-no','pm-bar','pm-name','pm-p1','pm-p2','pm-p3','pm-p4'].forEach(id => document.getElementById(id).value = '');
+            ['pm-no','pm-bar','pm-name','pm-p1','pm-p2','pm-p3','pm-p4','pm-p5','pm-p6','pm-p7','pm-p8','pm-p9','pm-p10','pm-p11','pm-p12','pm-p13'].forEach(id => document.getElementById(id).value = '');
             document.getElementById('pm-box').value = '1'; document.getElementById('product-modal').classList.remove('hidden');
         });
 
@@ -863,6 +923,9 @@
             const p = window.products[idx]; document.getElementById('prod-modal-title').innerText = '編輯商品'; document.getElementById('pm-idx').value = idx;
             document.getElementById('pm-no').value = p.itemNo; document.getElementById('pm-bar').value = p.barcode || ''; document.getElementById('pm-name').value = p.name; document.getElementById('pm-box').value = p.boxQty || 1;
             document.getElementById('pm-p1').value = p.p1 || ''; document.getElementById('pm-p2').value = p.p2 || ''; document.getElementById('pm-p3').value = p.p3 || ''; document.getElementById('pm-p4').value = p.p4 || '';
+            document.getElementById('pm-p5').value = p.p5 || ''; document.getElementById('pm-p6').value = p.p6 || ''; document.getElementById('pm-p7').value = p.p7 || ''; document.getElementById('pm-p8').value = p.p8 || '';
+            document.getElementById('pm-p9').value = p.p9 || ''; document.getElementById('pm-p10').value = p.p10 || ''; document.getElementById('pm-p11').value = p.p11 || ''; document.getElementById('pm-p12').value = p.p12 || '';
+            document.getElementById('pm-p13').value = p.p13 || '';
             document.getElementById('product-modal').classList.remove('hidden');
         }
 
@@ -885,7 +948,13 @@
             const name = document.getElementById('pm-name').value.trim();
             if(!itemNo || !name) { alert('品號與品名為必填！'); return; }
             
-            const newProd = { itemNo, barcode: document.getElementById('pm-bar').value.trim(), name, boxQty: parseInt(document.getElementById('pm-box').value) || 1, p1: parseFloat(document.getElementById('pm-p1').value) || 0, p2: parseFloat(document.getElementById('pm-p2').value) || 0, p3: parseFloat(document.getElementById('pm-p3').value) || 0, p4: parseFloat(document.getElementById('pm-p4').value) || 0 };
+            const newProd = { 
+                itemNo, barcode: document.getElementById('pm-bar').value.trim(), name, boxQty: parseInt(document.getElementById('pm-box').value) || 1, 
+                p1: parseFloat(document.getElementById('pm-p1').value) || 0, p2: parseFloat(document.getElementById('pm-p2').value) || 0, p3: parseFloat(document.getElementById('pm-p3').value) || 0, p4: parseFloat(document.getElementById('pm-p4').value) || 0,
+                p5: parseFloat(document.getElementById('pm-p5').value) || 0, p6: parseFloat(document.getElementById('pm-p6').value) || 0, p7: parseFloat(document.getElementById('pm-p7').value) || 0, p8: parseFloat(document.getElementById('pm-p8').value) || 0,
+                p9: parseFloat(document.getElementById('pm-p9').value) || 0, p10: parseFloat(document.getElementById('pm-p10').value) || 0, p11: parseFloat(document.getElementById('pm-p11').value) || 0, p12: parseFloat(document.getElementById('pm-p12').value) || 0,
+                p13: parseFloat(document.getElementById('pm-p13').value) || 0
+            };
             
             if(idx === -1 && window.products.some(p => p.itemNo === itemNo)) { alert('品號已存在！'); return; } 
             
@@ -989,10 +1058,19 @@
                                     name: nameIdx,
                                     boxQty: cols.findIndex(c => c.includes('箱入') || c.includes('入數') || c.includes('包裝')),
                                     barcode: cols.findIndex(c => c.includes('條碼')),
-                                    p1: cols.findIndex(c => c.includes('經銷') || c.includes('P1')),
-                                    p2: cols.findIndex(c => c.includes('中盤') || c.includes('P2')),
-                                    p3: cols.findIndex(c => c.includes('店頭') || c.includes('P3')),
-                                    p4: cols.findIndex(c => c.includes('末端') || c.includes('P4')),
+                                    p1: cols.findIndex(c => c.includes('經銷') || c.toUpperCase().includes('P1')),
+                                    p2: cols.findIndex(c => c.includes('盤商') || c.includes('中盤') || c.toUpperCase().includes('P2')),
+                                    p3: cols.findIndex(c => c.includes('店頭') || c.toUpperCase().includes('P3')),
+                                    p4: cols.findIndex(c => c.includes('零售') || c.includes('未售') || c.includes('末端') || c.toUpperCase().includes('P4')),
+                                    p5: cols.findIndex(c => c.includes('連鎖') || c.includes('百貨') || c.toUpperCase().includes('P5') || c.includes('定價五')),
+                                    p6: cols.findIndex(c => c.includes('賣場') || c.toUpperCase().includes('P6') || c.includes('定價六')),
+                                    p7: cols.findIndex(c => c.includes('機關') || c.includes('政府') || c.toUpperCase().includes('P7') || c.includes('定價七')),
+                                    p8: cols.findIndex(c => c.includes('代送') || c.toUpperCase().includes('P8') || c.includes('定價八')),
+                                    p9: cols.findIndex(c => c.includes('其他') || c.toUpperCase().includes('P9') || c.includes('定價九')),
+                                    p10: cols.findIndex(c => c.includes('電商') || c.toUpperCase().includes('P10') || c.includes('定價十')),
+                                    p11: cols.findIndex(c => c.includes('異業') || c.toUpperCase().includes('P11') || c.includes('定價十一')),
+                                    p12: cols.findIndex(c => c.includes('便利') || c.includes('超商') || c.toUpperCase().includes('P12') || c.includes('定價十二')),
+                                    p13: cols.findIndex(c => c.includes('藥妝') || c.toUpperCase().includes('P13') || c.includes('定價十三')),
                                 };
                             }
                             continue;
@@ -1008,6 +1086,15 @@
                                 p2: headerIdx.p2 !== -1 ? Number(cols[headerIdx.p2]) || 0 : 0, 
                                 p3: headerIdx.p3 !== -1 ? Number(cols[headerIdx.p3]) || 0 : 0, 
                                 p4: headerIdx.p4 !== -1 ? Number(cols[headerIdx.p4]) || 0 : 0,
+                                p5: headerIdx.p5 !== -1 ? Number(cols[headerIdx.p5]) || 0 : 0,
+                                p6: headerIdx.p6 !== -1 ? Number(cols[headerIdx.p6]) || 0 : 0,
+                                p7: headerIdx.p7 !== -1 ? Number(cols[headerIdx.p7]) || 0 : 0,
+                                p8: headerIdx.p8 !== -1 ? Number(cols[headerIdx.p8]) || 0 : 0,
+                                p9: headerIdx.p9 !== -1 ? Number(cols[headerIdx.p9]) || 0 : 0,
+                                p10: headerIdx.p10 !== -1 ? Number(cols[headerIdx.p10]) || 0 : 0,
+                                p11: headerIdx.p11 !== -1 ? Number(cols[headerIdx.p11]) || 0 : 0,
+                                p12: headerIdx.p12 !== -1 ? Number(cols[headerIdx.p12]) || 0 : 0,
+                                p13: headerIdx.p13 !== -1 ? Number(cols[headerIdx.p13]) || 0 : 0,
                             });
                         }
                     }
@@ -1050,9 +1137,15 @@
                         });
                         
                         if (!headerFound) {
-                            const codeIdx = cols.findIndex(c => c.includes('代號') || c.includes('編號') || c.includes('客編')); 
-                            const nameIdx = cols.findIndex(c => c.includes('名稱') || c.includes('簡稱') || c.includes('客戶')); 
-                            const priceIdx = cols.findIndex(c => c.includes('價格') || c.includes('等級') || c.includes('售價'));
+                            const codeIdx = cols.findIndex(c => c === '代號' || c.includes('代號') || c.includes('編號') || c.includes('客編')); 
+                            const nameIdx = cols.findIndex(c => c === '名稱' || c === '簡稱' || c.includes('名稱') || c.includes('簡稱') || c.includes('客戶')); 
+                            
+                            // 尋找「價格」欄位 (優先找精確相符，沒有再找模糊字)
+                            let priceIdx = cols.findIndex(c => c === '價格');
+                            if (priceIdx === -1) {
+                                priceIdx = cols.findIndex(c => c.includes('預設價格') || c.includes('等級') || c.includes('通路') || c.includes('售價'));
+                            }
+
                             if (codeIdx !== -1 && nameIdx !== -1) { 
                                 headerFound = true; 
                                 headerIdx = { code: codeIdx, name: nameIdx, price: priceIdx }; 
@@ -1063,10 +1156,24 @@
                         if (headerFound && cols[headerIdx.code] && cols[headerIdx.name]) {
                             let pLevel = 'p1';
                             if (headerIdx.price !== -1 && cols[headerIdx.price]) { 
-                                const pStr = cols[headerIdx.price].toLowerCase(); 
-                                if (pStr.includes('中盤') || pStr.includes('p2') || pStr.includes('2')) pLevel = 'p2'; 
-                                else if (pStr.includes('店頭') || pStr.includes('p3') || pStr.includes('3')) pLevel = 'p3'; 
-                                else if (pStr.includes('末端') || pStr.includes('p4') || pStr.includes('4')) pLevel = 'p4'; 
+                                const pStr = cols[headerIdx.price].toLowerCase().trim();
+                                const match = pStr.match(/^p(\d+)$/i) || pStr.match(/p(\d+)/i);
+                                
+                                if (match && parseInt(match[1]) >= 1 && parseInt(match[1]) <= 13) {
+                                    pLevel = 'p' + match[1];
+                                } else if (pStr.includes('經銷商') || pStr.includes('經銷')) { pLevel = 'p1'; }
+                                else if (pStr.includes('盤商') || pStr.includes('中盤')) { pLevel = 'p2'; }
+                                else if (pStr.includes('店頭')) { pLevel = 'p3'; }
+                                else if (pStr.includes('零售') || pStr.includes('未售') || pStr.includes('末端')) { pLevel = 'p4'; }
+                                else if (pStr.includes('連鎖百貨') || pStr.includes('連鎖') || pStr.includes('百貨')) { pLevel = 'p5'; }
+                                else if (pStr.includes('大賣場') || pStr.includes('賣場')) { pLevel = 'p6'; }
+                                else if (pStr.includes('政府機關') || pStr.includes('機關') || pStr.includes('政府')) { pLevel = 'p7'; }
+                                else if (pStr.includes('代送商') || pStr.includes('代送')) { pLevel = 'p8'; }
+                                else if (pStr.includes('其他')) { pLevel = 'p9'; }
+                                else if (pStr.includes('電商')) { pLevel = 'p10'; }
+                                else if (pStr.includes('異業合作') || pStr.includes('異業')) { pLevel = 'p11'; }
+                                else if (pStr.includes('便利商店') || pStr.includes('便利') || pStr.includes('超商')) { pLevel = 'p12'; }
+                                else if (pStr.includes('藥妝')) { pLevel = 'p13'; }
                             }
                             newCustomers.push({ code: cols[headerIdx.code].toUpperCase(), name: cols[headerIdx.name], priceLevel: pLevel });
                         }
@@ -1086,7 +1193,7 @@
                                 alert('客戶資料雲端匯入成功！');
                             } catch(err) { alert('雲端上傳發生錯誤。'); console.error(err); }
                         }
-                    } else { alert('無法解析檔案。請確保檔案含有「代號」與「名稱」標題。'); }
+                    } else { alert('無法解析檔案。請確保檔案至少含有「代號」與「名稱(或簡稱)」標題。'); }
                     e.target.value = '';
                 }; reader.readAsArrayBuffer(file); 
             });
@@ -1119,7 +1226,7 @@
                     document.getElementById('customer-name').value = cust.name; settings.customerName = cust.name;
                     if (settings.priceLevel !== cust.priceLevel) {
                         document.getElementById('price-level').value = cust.priceLevel; settings.priceLevel = cust.priceLevel;
-                        if (window.rows.some(r => r.itemNo.trim() !== '')) { if(confirm(`帶入【${cust.name}】價格，同步更新表格內商品價格？`)) { window.rows.forEach(row => { const p = window.products.find(x => x.itemNo.toUpperCase() === row.itemNo.toUpperCase()); if (p) row.price = p[settings.priceLevel] || 0; }); renderFullTable(); } }
+                        if (window.rows.some(r => r.itemNo.trim() !== '')) { if(confirm(`帶入【${cust.name}】價格等級(${cust.priceLevel.toUpperCase()})，同步更新表格內商品價格？`)) { window.rows.forEach(row => { const p = window.products.find(x => x.itemNo.toUpperCase() === row.itemNo.toUpperCase()); if (p) row.price = p[settings.priceLevel] || 0; }); renderFullTable(); } }
                     }
                 }
             });
@@ -1194,3 +1301,6 @@
     </script>
 </body>
 </html>
+```eof
+
+```
